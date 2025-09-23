@@ -1,5 +1,3 @@
-#'
-#'
 #' @param m Integer. Magnitude of a given link.
 #'
 #' @importFrom stats dpois qpois
@@ -8,118 +6,64 @@
 #'
 #' @export
 
-loocv <- function(data,
+loocv <- function(formula,
+                  data,
                   theta,
-                  x = "x",
-                  y = "y",
                   model = "lm",
-                  random = NULL,
-                  maxit = 100) {
+                  ...) {
 
-  ## select relevant columns
-  df0 <- data %>%
-    mutate(id = row_number()) %>%
-    mutate(across(.cols = which(colnames(.) %in% x),
-                  .fns = function(x) c(scale(x))))
-
-  ## get matrix x & y
-  mxy <- df0[, c(x, y)] %>%
+  ## get matrix X
+  y <- all.vars(formula)[1]
+  v_cnm_x <- attr(terms(formula), "term.labels")
+  m_x <- data[, v_cnm_x] |>
     data.matrix()
 
   ## distance matrix for weighting
-  dmat <- mxy %>%
-    dist(diag = TRUE,
-         upper = TRUE) %>%
+  m_dist <- dist(m_x,
+                 diag = TRUE,
+                 upper = TRUE) |>
     data.matrix()
 
+  v <- seq_len(nrow(data))
+
   ## summed squared deviance
-  if (model == "lm") {
-    ss <- sapply(1:(nrow(mxy)),
-                 function(i) {
-                   ## training data
-                   df_train <- df0[-i, ] %>%
-                     dplyr::select(all_of(c(y, x)))
+  ss <- sapply(v,
+               function(i) {
 
-                   ## calculate weights
-                   mu_d <- mean(dmat[i, -i])
-                   w <- exp(- theta * dmat[i, -i] / mu_d)
+                 ## training data
+                 df_train <- data[-i, cnm]
 
-                   ## prediction
-                   f <- parse(text = paste0("lm(", y, " ~ ",
-                                            paste(x, collapse = " + "), ", ",
-                                            "data = df_train, ",
-                                            "weights = w)"))
-                   lw <- eval(f)
+                 ## calculate weights
+                 mu_d <- mean(m_dist[i, -i])
+                 w <- exp(- theta * m_dist[i, -i] / mu_d)
 
-                   y1 <- mxy[i, y]
-                   y0 <- drop(c(1, mxy[i, x]) %*% coef(lw))
+                 lw <- switch(model,
+                              "lm" = lm(formula,
+                                        data = data,
+                                        weights = w,
+                                        ...),
+                              "glm" = glm(formula,
+                                          data = data,
+                                          weights = w,
+                                          ...),
+                              "lmer" = lme4::lmer(formula,
+                                                  data = data,
+                                                  weights = w,
+                                                  ...),
+                              "glmer" = lme4::glmer(formula,
+                                                    data = data,
+                                                    weights = w,
+                                                    ...),
+                              stop("Unsupported model type")
+                 )
 
-                   eps <- (y1 - y0)^2
-                   return(eps)
-                 }) %>%
-      sum()
-  }
+                 y0 <- predict(lw, newdata = data[i, ])
+                 y1 <- data[i, y]
 
-  if (model == "rlm") {
-    ss <- sapply(1:(nrow(mxy)),
-                 function(i) {
-                   ## training data
-                   df_train <- df0[-i, ] %>%
-                     dplyr::select(all_of(c(y, x)))
-
-                   ## calculate weights
-                   mu_d <- mean(dmat[i, -i])
-                   w <- exp(- theta * dmat[i, -i] / mu_d)
-
-                   ## prediction
-                   f <- parse(text = paste0("MASS::rlm(", y, " ~ ",
-                                            paste(x, collapse = " + "), ", ",
-                                            "data = df_train, ",
-                                            "maxit = maxit, ",
-                                            "weights = w)"))
-                   lw <- eval(f)
-
-                   y1 <- mxy[i, y]
-                   y0 <- drop(c(1, mxy[i, x]) %*% coef(lw))
-
-                   eps <- (y1 - y0)^2
-                   return(eps)
-                 }) %>%
-      sum()
-  }
-
-  if (model == "lmer") {
-    if (is.null(random))
-      stop("'random' is required for 'lmer'")
-
-    ss <- sapply(1:(nrow(mxy)),
-                 function(i) {
-                   ## training data
-                   df_train <- df0[-i, ] %>%
-                     dplyr::select(all_of(c(y, x, random)))
-
-                   ## calculate weights
-                   mu_d <- mean(dmat[i, -i])
-                   w <- exp(- theta * dmat[i, -i] / mu_d)
-
-                   ## prediction
-                   f <- parse(text = paste0("lme4::lmer(", y, " ~ ",
-                                            paste(x, collapse = " + "),
-                                            paste0(" + ", "(1 |", random, ")"),
-                                            ", ",
-                                            "data = df_train, ",
-                                            "control = lme4::lmerControl(check.conv.singular = lme4::.makeCC(action = 'ignore',  tol = 1e-4)), ",
-                                            "weights = w)"))
-                   lw <- eval(f)
-
-                   y1 <- mxy[i, y]
-                   y0 <- drop(c(1, mxy[i, x]) %*% lw@beta)
-
-                   eps <- (y1 - y0)^2
-                   return(eps)
-                 }) %>%
-      sum()
-  }
+                 eps <- (y1 - y0)^2
+                 return(eps)
+               }) |>
+    sum()
 
   return(sqrt(ss / nrow(mxy)))
 }
