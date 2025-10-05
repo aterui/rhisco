@@ -26,32 +26,31 @@ loocv <- function(formula,
 
   v <- seq_len(nrow(data))
 
-  ## summed squared deviance
   ss <- sapply(v,
                function(i) {
 
                  ## training data
-                 df_train <- data[-i, cnm]
+                 df_train <- data[-i, ]
 
                  ## calculate weights
                  mu_d <- mean(m_dist[i, -i])
-                 w <- exp(- theta * m_dist[i, -i] / mu_d)
+                 df_train$w <- exp(- theta * m_dist[i, -i] / mu_d)
 
                  lw <- switch(model,
                               "lm" = lm(formula,
-                                        data = data,
+                                        data = df_train,
                                         weights = w,
                                         ...),
                               "glm" = glm(formula,
-                                          data = data,
+                                          data = df_train,
                                           weights = w,
                                           ...),
                               "lmer" = lme4::lmer(formula,
-                                                  data = data,
+                                                  data = df_train,
                                                   weights = w,
                                                   ...),
                               "glmer" = lme4::glmer(formula,
-                                                    data = data,
+                                                    data = df_train,
                                                     weights = w,
                                                     ...),
                               stop("Unsupported model type")
@@ -65,5 +64,5 @@ loocv <- function(formula,
                }) |>
     sum()
 
-  return(sqrt(ss / nrow(mxy)))
+  return(sqrt(ss / nrow(m_x)))
 }
