@@ -80,6 +80,17 @@
 #   return(dev)
 # }
 
+#' @param x Vector for embedding.
+#' @param k Integer scalar specifying a lag.
+#'
+#' @author Akira Terui, \email{hanabi0111@gmail.com}
+#'
+#' @export
+
+lag_base <- function(x, k = 1L) {
+  if (k >= 0) c(rep(NA, k), head(x, -k))
+  else c(tail(x, k), rep(NA, -k))
+}
 
 #' @param formula Model formula.
 #' @param data Data frame.
@@ -115,44 +126,45 @@ loocv <- function(formula,
 
   v <- seq_len(nrow(data))
 
-  ss <- sapply(v,
-               function(i) {
+  rmse <- sapply(v,
+                 function(i) {
 
-                 ## training data
-                 df_train <- data[-i, ]
+                   ## training data
+                   df_train <- data[-i, ]
 
-                 ## calculate weights
-                 mu_d <- mean(m_dist[i, -i])
-                 df_train$w <- exp(- theta * m_dist[i, -i] / mu_d)
+                   ## calculate weights
+                   mu_d <- mean(m_dist[i, -i])
+                   df_train$w <- exp(- theta * m_dist[i, -i] / mu_d)
 
-                 lw <- switch(model,
-                              lm = lm(formula,
-                                      data = df_train,
-                                      weights = w,
-                                      ...),
-                              glm = glm(formula,
+                   lw <- switch(model,
+                                lm = lm(formula,
                                         data = df_train,
                                         weights = w,
                                         ...),
-                              lmer = lme4::lmer(formula,
-                                                data = df_train,
-                                                weights = w,
-                                                ...),
-                              glmer = lme4::glmer(formula,
+                                glm = glm(formula,
+                                          data = df_train,
+                                          weights = w,
+                                          ...),
+                                lmer = lme4::lmer(formula,
                                                   data = df_train,
                                                   weights = w,
                                                   ...),
-                              stop("Unsupported model type")
-                 )
+                                glmer = lme4::glmer(formula,
+                                                    data = df_train,
+                                                    weights = w,
+                                                    ...),
+                                stop("Unsupported model type")
+                   )
 
-                 y0 <- predict(lw, newdata = data[i, , drop = FALSE])
-                 y1 <- data[i, y]
-                 eps <- (y1 - y0)^2
+                   y0 <- predict(lw, newdata = data[i, , drop = FALSE])
+                   y1 <- data[i, y]
+                   eps <- (y1 - y0)^2
 
-                 return(eps)
-               }) |>
-    sum()
+                   return(eps)
+                 }) |>
+    mean() |>
+    sqrt()
 
-  return(sqrt(ss / nrow(m_x)))
+  return(rmse)
 }
 
