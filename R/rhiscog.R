@@ -1,11 +1,12 @@
 #' XXX
 #'
+#' @param formula
 #' @param data
-#' @param n_rep
-#' @param n_sim
+#' @param x_star
 #' @param theta
-#' @param maxit
-#' @param method
+#' @param n_sim
+#' @param model
+#' @param ...
 #'
 #' @importFrom stats dpois qpois
 #'
@@ -15,13 +16,11 @@
 
 get_psi <- function(formula,
                     data,
+                    x_star,
                     theta = seq(0, 10, by = 0.5),
-                    # x_star,
-                    # n_rep = 100,
-                    # n_sim = 1000,
-                    # theta = 1,
-                    # maxit = 100,
-                    model = "lm") {
+                    n_sim = 1000,
+                    model = "lm",
+                    ...) {
 
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
@@ -121,6 +120,7 @@ get_psi <- function(formula,
                  b[1] + b[2] * x_star
                })
 
+  ## estimate psi
   psi <- mean(v_r < 0)
 
   if (class(m) %in% c("lm", "glm")) {
