@@ -13,136 +13,123 @@
 #'
 #' @export
 
-get_psi <- function(data,
-                    n_rep = 100,
-                    n_sim = 1000,
-                    theta = 1,
-                    maxit = 100,
-                    method = "lm") {
+get_psi <- function(formula,
+                    data,
+                    theta = seq(0, 10, by = 0.5),
+                    # x_star,
+                    # n_rep = 100,
+                    # n_sim = 1000,
+                    # theta = 1,
+                    # maxit = 100,
+                    model = "lm") {
 
-  ## get best theta through S-map variant
-  v_rmse1 <- with(data, {
-    sapply(theta,
-           function(a) loocv(data_c,
-                             y = "log_r",
-                             x = "nt0",
-                             model = "rlm",
-                             maxit = maxit,
-                             theta = a))
-  })
+  ## estimate best theta with leave-one-out cross validation
+  v_rmse <- sapply(theta,
+                   function(x) loocv(formula,
+                                     data = data,
+                                     theta = x,
+                                     model = model)
+  )
 
-  theta1 <- theta[which.min(v_rmse1)]
+  theta0 <- theta[which.min(v_rmse)]
 
-  ## get estimate for community regulation
-  ## repeated weighted regression to approximate a partial derivative
-  list_c <- with(data, {
-    m0 <- MASS::rlm(log_r ~ nt0,
-                    data = data_c,
-                    maxit = maxit)
-    x_hat <- -coef(m0)[1] / coef(m0)[2]
+  ## scaled predictors
+  data <- transform(data,
+                    scl_n0 = scale(n0,
+                                   center = TRUE,
+                                   scale = TRUE),
+                    scl_nt0 = scale(nt0,
+                                    center = TRUE,
+                                    scale = TRUE),
+                    d = sqrt(n0^2 + (nt0 - x_star)^2)
+  )
 
-    for (i in 1:n_rep) {
-      d <- sqrt((data_c$log_r)^2 + (data_c$nt0 - x_hat[i])^2)
-      w0 <- exp(-theta1 * (d / mean(d)))
-      w <- w0 / sum(w0)
+  v_mu <- sapply(data[, c("n0", "nt0")], mean)
+  v_sigma <- sapply(data[, c("n0", "nt0")], sd)
 
-      m0 <- MASS::rlm(log_r ~ nt0,
-                      data = data_c,
+  ## get scaled weight
+  w0 <- with(data,
+             exp(-theta0 * (d / mean(d))))
+
+  data$w <- w0 / sum(w0)
+
+  m <- switch(model,
+              lm = lm(formula,
+                      data = data,
                       weights = w,
-                      maxit = maxit)
-      x_hat[i + 1] <- -coef(m0)[1] / coef(m0)[2]
-    }
+                      ...),
+              glm = glm(formula,
+                        data = data,
+                        weights = w,
+                        ...),
+              lmer = lme4::lmer(formula,
+                                data = data,
+                                weights = w,
+                                ...),
+              glmer = lme4::glmer(formula,
+                                  data = data,
+                                  weights = w,
+                                  ...),
+              stop("Unsupported model type")
+  )
 
-    mu_x_hat <- mean(x_hat[ceiling(n_rep * 0.5):n_rep])
+  if (any(class(m) %in% c("lm", "glm"))) {
+    m_sim <- MASS::mvrnorm(n = n_sim,
+                           mu = coef(m),
+                           Sigma = vcov(m)) |>
+      apply(MARGIN = 1,
+            function(z) {
 
-    return(list(m0 = m0,
-                x_hat = mu_x_hat))
-  })
+              ## intercept original
+              b0 <- z[1] - (z[2] / v_sigma["n0"]) * v_mu["n0"] - (z[3] / v_sigma["nt0"]) * v_mu["n0"]
 
-  x_star <- list_c$x_hat
-  m0 <- list_c$m0
-  if (x_star <= 0) return(NA)
+              ## n0's effect original
+              b1 <- z[2] / v_sigma["n0"]
 
-  ## get estimate for population regulation
-  ## partial derivative around X* (community equilibrium)
-  data$data_i <- with(data, {
-    sigma_i <<- sd(data_i$n0)
-    sigma_c <<- sd(data_i$nt0)
-    mu_c <<- sd(data_i$nt0)
-    mu_i <<- sd(data_i$nt0)
+              ## nt0's effect original
+              b2 <- z[3] / v_sigma["nt0"]
 
-    data_i <- data_i %>%
-      mutate(scl_n0 = (n0 - mu_i) / sigma_i,
-             scl_nt0 = (nt0 - mu_c) / sigma_c)
+              return(c(b0, b1, b2))
+            }) |>
+      t()
+  } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
+    m_sim <- MASS::mvrnorm(n = n_sim,
+                           mu = m@beta,
+                           Sigma = vcov(m)) |>
+      apply(MARGIN = 1,
+            function(z) {
 
-    return(data_i)
-  })
+              ## intercept original
+              b0 <- z[1] - (z[2] / v_sigma["n0"]) * v_mu["n0"] - (z[3] / v_sigma["nt0"]) * v_mu["n0"]
 
-  v_rmse2 <- with(data, {
-    sapply(theta,
-           function(a) loocv(data_i,
-                             theta = a,
-                             y = "log_r",
-                             x = c("n0", "nt0"),
-                             random = "species",
-                             model = "lmer"))
-  })
+              ## n0's effect original
+              b1 <- z[2] / v_sigma["n0"]
 
-  theta2 <- theta[which.min(v_rmse2)]
+              ## nt0's effect original
+              b2 <- z[3] / v_sigma["nt0"]
 
-  m <- with(data, {
-    d1 <- abs(data_i$nt0 - x_star)
-    d2 <- abs(data_i$n0 - 0)
-    d <- sqrt(d1^2 + d2^2)
-
-    if (method == "jags") {
-      m <- jagslmer(log_r ~ scl_n0 + scl_nt0,
-                    random = "species",
-                    data = data_i,
-                    distance = d / mean(d))
-    } else {
-
-      w0 <- exp(-theta2 * (d / mean(d)))
-      w <- w0 / sum(w0)
-      m <- lme4::lmer(log_r ~ scl_n0 + scl_nt0 + (1 | species),
-                      data = data_i,
-                      weights = w)
-    }
-
-    return(m)
-  })
-
-  ## - delta, species level
-  if (method == "jags") {
-    cnm <- colnames(m$mcmc)
-    v_delta <- m$mcmc[, str_detect(cnm, "beta\\[1\\]|beta\\[2\\]|beta\\[3\\]")] %>%
-      apply(MARGIN = 1, FUN = function(b) {
-        (b[1] - (b[2] / sigma_i) * mu_i - (b[3] / sigma_c) * mu_c) +
-          (b[3] / sigma_c) * x_star
-      })
-
-  } else {
-    msim <- MASS::mvrnorm(n = n_sim,
-                          mu = m@beta,
-                          Sigma = vcov(m))
-    cnm <- colnames(msim)
-    v_delta <- msim[, str_detect(cnm, "Intercept|n0|nt0")] %>%
-      apply(MARGIN = 1, FUN = function(b) {
-        (b[1] - (b[2] / sigma_i) * mu_i - (b[3] / sigma_c) * mu_c) +
-          (b[3] / sigma_c) * x_star
-      })
+              return(c(b0, b1, b2))
+            }) |>
+      t()
   }
 
-  ## competitive exceedance psi
-  psi <- mean(v_delta < 0)
+  ## get a vector of simulated log-scale r
+  cnm <- colnames(msim)
+  v_r <- apply(m_sim[, grepl("[Ii]ntercept|nt0", cnm)],
+               MARGIN = 1,
+               FUN = function(b) {
+                 b[1] + b[2] * x_star
+               })
 
-  if (method == "jags") {
-    attr(psi, "theta") <- c(theta1,
-                            with(m, post$`50%`[rownames(post) == "theta"]))
+  psi <- mean(v_r < 0)
+
+  if (class(m) %in% c("lm", "glm")) {
+    note <- m$converged
   } else {
-    attr(psi, "message") <- summary(m)$optinfo$conv$lme4$messages
-    attr(psi, "theta") <- c(theta1, theta2)
+    note <- summary(m)$optinfo$conv$lme4$messages
   }
+  attr(psi, "message") <- note
+  attr(psi, "theta") <- theta0
 
   return(psi)
 }
