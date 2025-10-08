@@ -1,87 +1,21 @@
-# #' @param m Integer. Magnitude of a given link.
-# #'
-# #' @importFrom stats dpois qpois
-# #'
-# #' @author Akira Terui, \email{hanabi0111@gmail.com}
-# #'
-# #' @export
-
-# pdev <- function(fit,
-#                  newdata = NULL,
-#                  family = NULL,
-#                  type = "response") {
-#
-#   # fit: a fitted model (lm, glm, lmer, glmer)
-#   # newdata: optional data.frame for predictions
-#   # family: specify "gaussian", "poisson", "binomial"; inferred if NULL
-#   # type: type of prediction ("response" by default)
-#
-#   # Get predicted mean / probability
-#   mu_hat <- if (is.null(newdata)) {
-#     predict(fit, type = type, re.form = NULL)  # for merMod, includes random effects
-#   } else {
-#     if ("merMod" %in% class(fit)) {
-#       predict(fit, newdata = newdata, type = type, re.form = NULL)
-#     } else {
-#       predict(fit, newdata = newdata, type = type)
-#     }
-#   }
-#
-#   # Observed response
-#   if (is.null(newdata)) {
-#     y <- model.response(model.frame(fit))
-#   } else {
-#     y <- newdata[[all.vars(formula(fit))[1]]]
-#   }
-#
-#   # Infer family if not provided
-#   if (is.null(family)) {
-#     family <- if ("glm" %in% class(fit)) {
-#       fit$family$family
-#     } else if ("glmerMod" %in% class(fit)) {
-#       fit@resp$family$family
-#     } else if ("lm" %in% class(fit) || "lmerMod" %in% class(fit)) {
-#       "gaussian"
-#     } else {
-#       stop("Cannot infer family; please specify.")
-#     }
-#   }
-#
-#   # Compute pointwise deviance
-#   dev <- switch(family,
-#                 gaussian = (y - mu_hat)^2,
-#                 poisson  = {
-#                   y_pos <- y > 0
-#                   d <- numeric(length(y))
-#                   d[y_pos] <- 2 * (y[y_pos] * log(y[y_pos] / mu_hat[y_pos]) - (y[y_pos] - mu_hat[y_pos]))
-#                   d[!y_pos] <- 2 * (- mu_hat[!y_pos])
-#                   d
-#                 },
-#                 binomial = {
-#                   # Support binary (n=1) and general (n_i > 1)
-#                   if (is.matrix(y) && ncol(y) == 2) {
-#                     # y = cbind(successes, failures)
-#                     n <- rowSums(y)
-#                     s <- y[,1]
-#                   } else {
-#                     n <- 1
-#                     s <- y
-#                   }
-#                   d <- numeric(length(y))
-#                   pos <- s > 0
-#                   fail <- (n - s) > 0
-#                   d[pos] <- 2 * s[pos] * log(s[pos] / (n[pos] * mu_hat[pos]))
-#                   d[fail] <- d[fail] + 2 * (n[fail] - s[fail]) * log((n[fail] - s[fail]) / (n[fail] * (1 - mu_hat[fail])))
-#                   d
-#                 },
-#                 stop("Unsupported family")
-#   )
-#
-#   return(dev)
-# }
-
-#' @param x Vector for embedding.
-#' @param k Integer scalar specifying a lag.
+#' Generate Lagged or Lead Versions of a Vector
+#'
+#' This function creates a lagged (or lead) version of a numeric or character vector by shifting its elements
+#' forward or backward by a specified number of positions.
+#' Missing values (\code{NA}) are used to fill in positions that fall outside the original range after shifting.
+#'
+#' @param x A numeric, character, or logical vector. The vector to be lagged or led.
+#' @param k An integer scalar specifying the number of positions to shift.
+#'   - A positive value of \code{k} produces a **lag**, moving elements forward and filling the first \code{k} elements with \code{NA}.
+#'   - A negative value of \code{k} produces a **lead**, moving elements backward and filling the last \code{abs(k)} elements with \code{NA}.
+#'
+#' @return A vector of the same length as \code{x}, with elements shifted according to \code{k}.
+#'
+#' @examples
+#' x <- 1:5
+#' lag_base(x, k = 1)   # returns c(NA, 1, 2, 3, 4)
+#' lag_base(x, k = -1)  # returns c(2, 3, 4, 5, NA)
+#' lag_base(x, k = 0)   # returns c(1, 2, 3, 4, 5)
 #'
 #' @author Akira Terui, \email{hanabi0111@gmail.com}
 #'
