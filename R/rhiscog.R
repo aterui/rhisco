@@ -35,6 +35,27 @@ loocv <- function(formula,
 
   v <- seq_len(nrow(data))
 
+  ## define model fitting function once
+  fit_fun <- switch(model,
+                    lm = function(formula, data, w, ...) lm(formula,
+                                                            data = data,
+                                                            weights = w,
+                                                            ...),
+                    glm = function(formula, data, w, ...) glm(formula,
+                                                              data = data,
+                                                              weights = w,
+                                                              ...),
+                    lmer = function(formula, data, w, ...) lme4::lmer(formula,
+                                                                      data = data,
+                                                                      weights = w,
+                                                                      ...),
+                    glmer = function(formula, data, w, ...) lme4::glmer(formula,
+                                                                        data = data,
+                                                                        weights = w,
+                                                                        ...),
+                    stop("Unsupported model type")
+  )
+
   rmse <- sapply(v,
                  function(i) {
 
@@ -45,25 +66,10 @@ loocv <- function(formula,
                    mu_d <- mean(m_dist[i, -i])
                    df_train$w <- exp(- theta * m_dist[i, -i] / mu_d)
 
-                   lw <- switch(model,
-                                lm = lm(formula,
-                                        data = df_train,
-                                        weights = w,
-                                        ...),
-                                glm = glm(formula,
-                                          data = df_train,
-                                          weights = w,
-                                          ...),
-                                lmer = lme4::lmer(formula,
-                                                  data = df_train,
-                                                  weights = w,
-                                                  ...),
-                                glmer = lme4::glmer(formula,
-                                                    data = df_train,
-                                                    weights = w,
-                                                    ...),
-                                stop("Unsupported model type")
-                   )
+                   lw <- fit_fun(formula,
+                                 data = df_train,
+                                 w = w,
+                                 ...)
 
                    y0 <- predict(lw, newdata = data[i, , drop = FALSE])
                    y1 <- data[i, y]
@@ -163,7 +169,6 @@ xeq <- function(formula,
 #' @return A numeric value representing the estimated historical contingency (ψ).
 #'
 #' @export
-
 
 get_psi <- function(formula,
                     data,
