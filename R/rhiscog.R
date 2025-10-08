@@ -37,22 +37,30 @@ loocv <- function(formula,
 
   ## define model fitting function once
   fit_fun <- switch(model,
-                    lm = function(formula, data, w, ...) lm(formula,
-                                                            data = data,
-                                                            weights = w,
-                                                            ...),
-                    glm = function(formula, data, w, ...) glm(formula,
-                                                              data = data,
-                                                              weights = w,
-                                                              ...),
-                    lmer = function(formula, data, w, ...) lme4::lmer(formula,
-                                                                      data = data,
-                                                                      weights = w,
-                                                                      ...),
-                    glmer = function(formula, data, w, ...) lme4::glmer(formula,
-                                                                        data = data,
-                                                                        weights = w,
-                                                                        ...),
+                    lm = function(formula, data, w, ...) {
+                      lm(formula,
+                         data = data,
+                         weights = w,
+                         ...)
+                    },
+                    glm = function(formula, data, w, ...) {
+                      glm(formula,
+                          data = data,
+                          weights = w,
+                          ...)
+                    },
+                    lmer = function(formula, data, w, ...) {
+                      lme4::lmer(formula,
+                                 data = data,
+                                 weights = w,
+                                 ...)
+                    },
+                    glmer = function(formula, data, w, ...) {
+                      lme4::glmer(formula,
+                                  data = data,
+                                  weights = w,
+                                  ...)
+                    },
                     stop("Unsupported model type")
   )
 
@@ -64,7 +72,7 @@ loocv <- function(formula,
 
                    ## calculate weights
                    mu_d <- mean(m_dist[i, -i])
-                   df_train$w <- exp(- theta * m_dist[i, -i] / mu_d)
+                   df_train$w <- exp(-theta * m_dist[i, -i] / mu_d)
 
                    lw <- fit_fun(formula,
                                  data = df_train,
@@ -125,10 +133,12 @@ xeq <- function(formula,
 
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
-                   function(x) loocv(formula,
-                                     data = data,
-                                     theta = x,
-                                     model = "lm"))
+                   function(x) {
+                     loocv(formula,
+                           data = data,
+                           theta = x,
+                           model = "lm")
+                   })
 
   theta0 <- theta[which.min(v_rmse)]
 
@@ -144,7 +154,7 @@ xeq <- function(formula,
 
     x_hat[i + 1] <- -coef(m)[1] / coef(m)[2]
     gap <- abs(x_hat[i + 1] - x_hat[i])
-    if(gap < tol) break
+    if (gap < tol) break
   }
 
   x_star <- x_hat[which.max(!is.na(x_hat))]
@@ -166,7 +176,7 @@ xeq <- function(formula,
 #'
 #' @author Akira Terui (\email{hanabi0111@gmail.com})
 #'
-#' @return A numeric value representing the estimated historical contingency (ψ).
+#' @return A numeric value representing the estimated historical contingency (psi).
 #'
 #' @export
 
@@ -180,11 +190,12 @@ get_psi <- function(formula,
 
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
-                   function(x) loocv(formula,
-                                     data = data,
-                                     theta = x,
-                                     model = model)
-  )
+                   function(x) {
+                     loocv(formula,
+                           data = data,
+                           theta = x,
+                           model = model)
+                   })
 
   theta0 <- theta[which.min(v_rmse)]
 
@@ -271,7 +282,7 @@ get_psi <- function(formula,
   }
 
   ## get a vector of simulated log-scale r
-  cnm <- colnames(msim)
+  cnm <- colnames(m_sim)
   v_r <- apply(m_sim[, grepl("[Ii]ntercept|nt0", cnm)],
                MARGIN = 1,
                FUN = function(b) {
