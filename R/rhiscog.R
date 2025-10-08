@@ -184,6 +184,8 @@ get_psi <- function(formula,
                     data,
                     x_star,
                     theta = seq(0, 10, by = 0.5),
+                    n_lag = "n_lag",
+                    nt_lag = "nt_lag",
                     n_sim = 1000,
                     model = "lm",
                     ...) {
@@ -201,17 +203,17 @@ get_psi <- function(formula,
 
   ## scaled predictors
   data <- transform(data,
-                    scl_n0 = scale(n0,
+                    scl_n0 = scale(data[[n_lag]],
                                    center = TRUE,
                                    scale = TRUE),
-                    scl_nt0 = scale(nt0,
+                    scl_nt0 = scale(data[[nt_lag]],
                                     center = TRUE,
                                     scale = TRUE),
-                    d = sqrt(n0^2 + (nt0 - x_star)^2)
+                    d = sqrt(data[[n_lag]]^2 + (data[[nt_lag]] - x_star)^2)
   )
 
-  v_mu <- sapply(data[, c("n0", "nt0")], mean)
-  v_sigma <- sapply(data[, c("n0", "nt0")], sd)
+  v_mu <- sapply(data[, c(n_lag, nt_lag)], mean)
+  v_sigma <- sapply(data[, c(n_lag, nt_lag)], sd)
 
   ## get scaled weight
   w0 <- with(data,
@@ -247,13 +249,15 @@ get_psi <- function(formula,
             function(z) {
 
               ## intercept original
-              b0 <- z[1] - (z[2] / v_sigma["n0"]) * v_mu["n0"] - (z[3] / v_sigma["nt0"]) * v_mu["n0"]
+              b0 <- z[1] -
+                (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
+                (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
 
               ## n0's effect original
-              b1 <- z[2] / v_sigma["n0"]
+              b1 <- z[2] / v_sigma[n_lag]
 
               ## nt0's effect original
-              b2 <- z[3] / v_sigma["nt0"]
+              b2 <- z[3] / v_sigma[nt_lag]
 
               return(c(b0, b1, b2))
             }) |>
@@ -267,14 +271,14 @@ get_psi <- function(formula,
 
               ## intercept original
               b0 <- z[1] -
-                (z[2] / v_sigma["n0"]) * v_mu["n0"] -
-                (z[3] / v_sigma["nt0"]) * v_mu["nt0"]
+                (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
+                (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
 
               ## n0's effect original
-              b1 <- z[2] / v_sigma["n0"]
+              b1 <- z[2] / v_sigma[n_lag]
 
               ## nt0's effect original
-              b2 <- z[3] / v_sigma["nt0"]
+              b2 <- z[3] / v_sigma[nt_lag]
 
               return(c(b0, b1, b2))
             }) |>
@@ -283,7 +287,8 @@ get_psi <- function(formula,
 
   ## get a vector of simulated log-scale r
   cnm <- colnames(m_sim)
-  v_r <- apply(m_sim[, grepl("[Ii]ntercept|nt0", cnm)],
+  key <- paste("[Ii]ntercept", nt_lag, sep = "|")
+  v_r <- apply(m_sim[, grepl(key, cnm)],
                MARGIN = 1,
                FUN = function(b) {
                  b[1] + b[2] * x_star
