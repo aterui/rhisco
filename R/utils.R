@@ -22,8 +22,8 @@
 #' @export
 
 lag_base <- function(x, k = 1L) {
-  if (k >= 0) c(rep(NA, k), head(x, -k))
-  else c(tail(x, k), rep(NA, -k))
+  if (k >= 0) c(rep(NA, k), utils::head(x, -k))
+  else c(utils::tail(x, k), rep(NA, -k))
 }
 
 #' Generate Lagged Values Within Groups

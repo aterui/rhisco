@@ -9,6 +9,9 @@
 #' @param model Character. Type of model to fit: one of \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
+#' @importFrom stats lm glm predict dist terms
+#' @importFrom lme4 lmer glmer
+#'
 #' @author Akira Terui (\email{hanabi0111@gmail.com})
 #'
 #' @export
@@ -38,16 +41,16 @@ loocv <- function(formula,
   ## define model fitting function once
   fit_fun <- switch(model,
                     lm = function(formula, data, w, ...) {
-                      lm(formula,
-                         data = data,
-                         weights = w,
-                         ...)
+                      stats::lm(formula,
+                                data = data,
+                                weights = w,
+                                ...)
                     },
                     glm = function(formula, data, w, ...) {
-                      glm(formula,
-                          data = data,
-                          weights = w,
-                          ...)
+                      stats::glm(formula,
+                                 data = data,
+                                 weights = w,
+                                 ...)
                     },
                     lmer = function(formula, data, w, ...) {
                       lme4::lmer(formula,
@@ -105,6 +108,9 @@ loocv <- function(formula,
 #'
 #' @return Numeric value representing the estimated equilibrium density of the total community.
 #'
+#' @importFrom stats lm glm predict dist terms
+#' @importFrom lme4 lmer glmer
+#'
 #' @author Akira Terui (\email{hanabi0111@gmail.com})
 #'
 #' @export
@@ -120,11 +126,11 @@ xeq <- function(formula,
   x_hat <- rep(NA, times = maxit)
 
   ## get the first estimate of x_star
-  m0 <- lm(formula,
-           data = data,
-           ...)
+  m0 <- stats::lm(formula,
+                  data = data,
+                  ...)
 
-  x_hat[1] <- -coef(m0)[1] / coef(m0)[2]
+  x_hat[1] <- -stats::coef(m0)[1] / stats::coef(m0)[2]
 
   if (x_hat[1] < 0) stop("No feasible equilibrium exists.")
 
@@ -147,12 +153,12 @@ xeq <- function(formula,
     w0 <- exp(-theta0 * (d / mean(d)))
     data$w <- w0 / sum(w0)
 
-    m <- lm(formula,
-            data = data,
-            weights = w,
-            ...)
+    m <- stats::lm(formula,
+                   data = data,
+                   weights = w,
+                   ...)
 
-    x_hat[i + 1] <- -coef(m)[1] / coef(m)[2]
+    x_hat[i + 1] <- -stats::coef(m)[1] / stats::coef(m)[2]
     gap <- abs(x_hat[i + 1] - x_hat[i])
     if (gap < tol) break
   }
@@ -170,11 +176,17 @@ xeq <- function(formula,
 #' Computes historical contingency (psi) based on equilibrium community density estimates.
 #'
 #' @param x_star Numeric. Equilibrium total community density. The estimate should be obtained from \code{xeq}.
+#' @param n_lag Character string specifying the column of lagged population density.
+#' @param nt_lag Character string specifying the column of lagged total community density.
 #' @param n_sim Integer. Number of random samples drawn from a multivariate normal distribution.
 #' @param ... Additional arguments passed to other methods.
 #' @inheritParams xeq
+#' @inheritParams loocv
 #'
 #' @author Akira Terui (\email{hanabi0111@gmail.com})
+#'
+#' @importFrom stats lm glm predict dist terms
+#' @importFrom lme4 lmer glmer
 #'
 #' @return A numeric value representing the estimated historical contingency (psi).
 #'
@@ -213,7 +225,7 @@ get_psi <- function(formula,
   data[["d"]] <- sqrt(data[[n_lag]]^2 + (data[[nt_lag]] - x_star)^2)
 
   v_mu <- sapply(data[, c(n_lag, nt_lag)], mean)
-  v_sigma <- sapply(data[, c(n_lag, nt_lag)], sd)
+  v_sigma <- sapply(data[, c(n_lag, nt_lag)], stats::sd())
 
   ## get scaled weight
   w0 <- with(data, exp(-theta0 * (d / mean(d))))
@@ -221,14 +233,14 @@ get_psi <- function(formula,
   data$w <- w0 / sum(w0)
 
   m <- switch(model,
-              lm = lm(formula,
-                      data = data,
-                      weights = w,
-                      ...),
-              glm = glm(formula,
-                        data = data,
-                        weights = w,
-                        ...),
+              lm = stats::lm(formula,
+                             data = data,
+                             weights = w,
+                             ...),
+              glm = stats::glm(formula,
+                               data = data,
+                               weights = w,
+                               ...),
               lmer = lme4::lmer(formula,
                                 data = data,
                                 weights = w,
@@ -242,8 +254,8 @@ get_psi <- function(formula,
 
   if (any(class(m) %in% c("lm", "glm"))) {
     m_sim <- MASS::mvrnorm(n = n_sim,
-                           mu = coef(m),
-                           Sigma = vcov(m)) |>
+                           mu = stats::coef(m),
+                           Sigma = stats::vcov(m)) |>
       apply(MARGIN = 1,
             function(z) {
 
@@ -264,7 +276,7 @@ get_psi <- function(formula,
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
     m_sim <- MASS::mvrnorm(n = n_sim,
                            mu = m@beta,
-                           Sigma = vcov(m)) |>
+                           Sigma = stats::vcov(m)) |>
       apply(MARGIN = 1,
             function(z) {
 
