@@ -243,6 +243,7 @@ xeq <- function(formula,
 #'   distribution to propagate parameter uncertainty.
 #' @param model Character string specifying the model type to fit. Must be one of
 #'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.
+#' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
 #' @details
@@ -279,14 +280,15 @@ xeq <- function(formula,
 #' \dontrun{
 #' ## Example with synthetic data
 #' df <- data.frame(
+#'   log_r = runif(50, -1, 1),
 #'   n_lag = rnorm(50, 10, 2),
-#'   nt_lag = rnorm(50, 10, 2),
-#'   n = rnorm(50, 10, 2)
+#'   nt_lag = rnorm(50, 50, 10),
+#'   species = rep(1:10, times = 5)
 #' )
 #'
 #' x_star <- 10  # example equilibrium density
 #' get_psi(
-#'   formula = n ~ n_lag + nt_lag,
+#'   formula = log_r ~ n_lag + nt_lag,
 #'   data = df,
 #'   x_star = x_star,
 #'   theta = seq(0, 5, by = 0.5),
@@ -309,6 +311,7 @@ get_psi <- function(formula,
                     nt_lag = "nt_lag",
                     n_sim = 1000,
                     model = "lm",
+                    rescale = TRUE,
                     ...) {
 
   ## estimate best theta with leave-one-out cross validation
@@ -322,19 +325,23 @@ get_psi <- function(formula,
 
   theta0 <- theta[which.min(v_rmse)]
 
-  ## scaled predictors
-  data[[paste0("scl_", n_lag)]] <- scale(data[[n_lag]],
-                                         center = TRUE,
-                                         scale = TRUE)
-
-  data[[paste0("scl_", nt_lag)]] <- scale(data[[nt_lag]],
-                                          center = TRUE,
-                                          scale = TRUE)
-
+  ## distance
   data[["d"]] <- sqrt(data[[n_lag]]^2 + (data[[nt_lag]] - x_star)^2)
 
+  ## mean and sd
   v_mu <- sapply(data[, c(n_lag, nt_lag)], mean)
-  v_sigma <- sapply(data[, c(n_lag, nt_lag)], stats::sd())
+  v_sigma <- sapply(data[, c(n_lag, nt_lag)], stats::sd)
+
+  ## scaled predictors
+  if (rescale) {
+    data[[n_lag]] <- scale(data[[n_lag]],
+                           center = TRUE,
+                           scale = TRUE)
+
+    data[[nt_lag]] <- scale(data[[nt_lag]],
+                            center = TRUE,
+                            scale = TRUE)
+  }
 
   ## get scaled weight
   w0 <- with(data, exp(-theta0 * (d / mean(d))))
@@ -364,45 +371,52 @@ get_psi <- function(formula,
   if (any(class(m) %in% c("lm", "glm"))) {
     m_sim <- MASS::mvrnorm(n = n_sim,
                            mu = stats::coef(m),
-                           Sigma = stats::vcov(m)) |>
-      apply(MARGIN = 1,
-            function(z) {
+                           Sigma = stats::vcov(m))
 
-              ## intercept original
-              b0 <- z[1] -
-                (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
-                (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
+    if (rescale) {
+      m_sim <- apply(m_sim,
+                     MARGIN = 1,
+                     function(z) {
 
-              ## n0's effect original
-              b1 <- z[2] / v_sigma[n_lag]
+                       ## intercept original
+                       b0 <- z[1] -
+                         (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
+                         (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
 
-              ## nt0's effect original
-              b2 <- z[3] / v_sigma[nt_lag]
+                       ## n0's effect original
+                       b1 <- z[2] / v_sigma[n_lag]
 
-              return(c(b0, b1, b2))
-            }) |>
-      t()
+                       ## nt0's effect original
+                       b2 <- z[3] / v_sigma[nt_lag]
+
+                       return(c(b0, b1, b2))
+                     }) |>
+        t()
+    }
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
     m_sim <- MASS::mvrnorm(n = n_sim,
                            mu = m@beta,
-                           Sigma = stats::vcov(m)) |>
-      apply(MARGIN = 1,
-            function(z) {
+                           Sigma = stats::vcov(m))
 
-              ## intercept original
-              b0 <- z[1] -
-                (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
-                (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
+    if (rescale) {
+      m_sim <- apply(MARGIN = 1,
+                     function(z) {
 
-              ## n0's effect original
-              b1 <- z[2] / v_sigma[n_lag]
+                       ## intercept original
+                       b0 <- z[1] -
+                         (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
+                         (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
 
-              ## nt0's effect original
-              b2 <- z[3] / v_sigma[nt_lag]
+                       ## n0's effect original
+                       b1 <- z[2] / v_sigma[n_lag]
 
-              return(c(b0, b1, b2))
-            }) |>
-      t()
+                       ## nt0's effect original
+                       b2 <- z[3] / v_sigma[nt_lag]
+
+                       return(c(b0, b1, b2))
+                     }) |>
+        t()
+    }
   }
 
   ## get a vector of simulated log-scale r

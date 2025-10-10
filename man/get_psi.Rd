@@ -13,6 +13,7 @@ get_psi(
   nt_lag = "nt_lag",
   n_sim = 1000,
   model = "lm",
+  rescale = TRUE,
   ...
 )
 }
@@ -36,6 +37,8 @@ distribution to propagate parameter uncertainty.}
 
 \item{model}{Character string specifying the model type to fit. Must be one of
 \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.}
+
+\item{rescale}{Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting functions.}
 }
@@ -79,14 +82,15 @@ where \eqn{r < 0}.
 \dontrun{
 ## Example with synthetic data
 df <- data.frame(
+  log_r = runif(50, -1, 1),
   n_lag = rnorm(50, 10, 2),
-  nt_lag = rnorm(50, 10, 2),
-  n = rnorm(50, 10, 2)
+  nt_lag = rnorm(50, 50, 10),
+  species = rep(1:10, times = 5)
 )
 
 x_star <- 10  # example equilibrium density
 get_psi(
-  formula = n ~ n_lag + nt_lag,
+  formula = log_r ~ n_lag + nt_lag,
   data = df,
   x_star = x_star,
   theta = seq(0, 5, by = 0.5),
