@@ -202,22 +202,21 @@ get_psi <- function(formula,
   theta0 <- theta[which.min(v_rmse)]
 
   ## scaled predictors
-  data <- transform(data,
-                    scl_n0 = scale(data[[n_lag]],
-                                   center = TRUE,
-                                   scale = TRUE),
-                    scl_nt0 = scale(data[[nt_lag]],
-                                    center = TRUE,
-                                    scale = TRUE),
-                    d = sqrt(data[[n_lag]]^2 + (data[[nt_lag]] - x_star)^2)
-  )
+  data[[paste0("scl_", n_lag)]] <- scale(data[[n_lag]],
+                                         center = TRUE,
+                                         scale = TRUE)
+
+  data[[paste0("scl_", nt_lag)]] <- scale(data[[nt_lag]],
+                                          center = TRUE,
+                                          scale = TRUE)
+
+  data[["d"]] <- sqrt(data[[n_lag]]^2 + (data[[nt_lag]] - x_star)^2)
 
   v_mu <- sapply(data[, c(n_lag, nt_lag)], mean)
   v_sigma <- sapply(data[, c(n_lag, nt_lag)], sd)
 
   ## get scaled weight
-  w0 <- with(data,
-             exp(-theta0 * (d / mean(d))))
+  w0 <- with(data, exp(-theta0 * (d / mean(d))))
 
   data$w <- w0 / sum(w0)
 
