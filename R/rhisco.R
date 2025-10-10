@@ -31,9 +31,9 @@ loocv <- function(formula,
     data.matrix()
 
   ## distance matrix for weighting
-  m_dist <- dist(m_x,
-                 diag = TRUE,
-                 upper = TRUE) |>
+  m_dist <- stats::dist(m_x,
+                        diag = TRUE,
+                        upper = TRUE) |>
     data.matrix()
 
   v <- seq_len(nrow(data))

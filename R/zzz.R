@@ -1,1 +1,1 @@
-utils::globalVariables(c("w"))
+utils::globalVariables(c("w", "d"))
