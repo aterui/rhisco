@@ -40,6 +40,7 @@ lag_base <- function(x, k = 1L) {
 #'   used to order observations within each group. Default is \code{"t"}.
 #' @param index Character string specifying the grouping variable (e.g., species, site, ID).
 #'   Default is \code{"species"}.
+#' @param total Logical. If \code{TRUE}, total community density will be calculated.
 #'
 #' @return A data frame identical to \code{data} but with an additional column named
 #'   \code{<y>_lag}, containing the one-step lagged values of the response variable
@@ -63,7 +64,8 @@ lag_base <- function(x, k = 1L) {
 lag_block <- function(data,
                       y = "n",
                       t = "t",
-                      index = NULL) {
+                      index = NULL,
+                      total = TRUE) {
 
   if (is.null(index)) {
 
@@ -72,15 +74,29 @@ lag_block <- function(data,
     df_lag <- data
 
     if (any(table(data[[t]]) > 1))
-      message("Detected multiple records for the same time point. If you intended to create blocks separately for different groups, please specify the `index` argument.")
+      stop("Detected multiple records for the same time point. If you intended to create blocks separately for different groups, please specify the `index` argument.")
 
   } else {
+
+    if (total) {
+      nt <- paste0(y, "t")
+      nt_lag <- paste0(y, "t_lag")
+
+      data[[nt]] <- stats::ave(data[[y]],
+                               data[[t]],
+                               FUN = sum)
+    }
 
     list_lag <- split(x = data,
                       f = data[[index]]) |>
       lapply(function(d) {
         d <- d[order(d[[t]]), ]  # sort by time column
         d[[paste0(y, "_lag")]] <- lag_base(d[[y]], k = 1)
+
+        if (total) {
+          d[[nt_lag]] <- lag_base(d[[nt]], k = 1)
+        }
+
         return(d)
       })
 
