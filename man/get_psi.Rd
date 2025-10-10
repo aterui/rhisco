@@ -2,7 +2,7 @@
 % Please edit documentation in R/rhisco.R
 \name{get_psi}
 \alias{get_psi}
-\title{Estimate Historical Contingency (psi)}
+\title{Estimate Historical Contingency (ψ)}
 \usage{
 get_psi(
   formula,
@@ -17,29 +17,87 @@ get_psi(
 )
 }
 \arguments{
-\item{formula}{A model formula specifying the response and predictors.}
+\item{formula}{A model formula specifying the response and predictor variables.}
 
-\item{data}{A data frame containing the variables in \code{formula}.}
+\item{data}{A data frame containing the variables referenced in \code{formula}.}
 
-\item{x_star}{Numeric. Equilibrium total community density. The estimate should be obtained from \code{xeq}.}
+\item{x_star}{Numeric value representing the equilibrium total community density,
+typically obtained from \code{\link{xeq}}.}
 
-\item{theta}{Numeric vector. Candidate values for the weighting parameter, evaluated using leave-one-out cross-validation.}
+\item{theta}{Numeric vector. Candidate values of the distance-weighting parameter,
+evaluated via leave-one-out cross-validation to select the optimal value.}
 
-\item{n_lag}{Character string specifying the column of lagged population density.}
+\item{n_lag}{Character string specifying the column name for lagged population density.}
 
-\item{nt_lag}{Character string specifying the column of lagged total community density.}
+\item{nt_lag}{Character string specifying the column name for lagged total community density.}
 
-\item{n_sim}{Integer. Number of random samples drawn from a multivariate normal distribution.}
+\item{n_sim}{Integer. Number of random samples drawn from a multivariate normal
+distribution to propagate parameter uncertainty.}
 
-\item{model}{Character. Type of model to fit: one of \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.}
+\item{model}{Character string specifying the model type to fit. Must be one of
+\code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.}
 
-\item{...}{Additional arguments passed to other methods.}
+\item{...}{Additional arguments passed to the underlying model-fitting functions.}
 }
 \value{
-A numeric value representing the estimated historical contingency (psi).
+A numeric value representing the estimated historical contingency (\eqn{\psi}),
+with the following attributes:
+\itemize{
+\item \code{"theta"} – the optimal distance-weighting parameter (\eqn{\theta_0})
+\item \code{"message"} – model convergence information (if available)
+}
 }
 \description{
-Computes historical contingency (psi) based on equilibrium community density estimates.
+Estimates the degree of historical contingency (\eqn{\psi}) in community dynamics
+based on the equilibrium total community density (\eqn{x^*}). The statistic
+quantifies the probability that the intrinsic population growth rate at equilibrium
+is negative, given parameter uncertainty in a localized regression model.
+}
+\details{
+This function computes historical contingency (\eqn{\psi}) as the proportion of
+simulated intrinsic growth rates (\eqn{r}) that are negative at the equilibrium
+total community density (\eqn{x^*}). The procedure is as follows:
+
+\enumerate{
+\item The optimal distance-weighting parameter (\eqn{\theta_0}) is estimated
+using leave-one-out cross-validation (\code{\link{loocv}}).
+\item A localized regression model is fit using exponential distance-based
+weights:
+\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
+where \eqn{d_i} is the distance from the focal point and \eqn{\bar{d}} is
+the mean distance among observations.
+\item Parameter uncertainty is propagated by simulating coefficients from a
+multivariate normal distribution based on the model’s estimated covariance matrix.
+\item For each simulated parameter set, the log-scale intrinsic rate of increase
+(\eqn{r}) is computed as:
+\deqn{r = \beta_0 + \beta_2 x^*}
+\item The value of \eqn{\psi} is estimated as the proportion of simulations
+where \eqn{r < 0}.
+}
+}
+\examples{
+\dontrun{
+## Example with synthetic data
+df <- data.frame(
+  n_lag = rnorm(50, 10, 2),
+  nt_lag = rnorm(50, 10, 2),
+  n = rnorm(50, 10, 2)
+)
+
+x_star <- 10  # example equilibrium density
+get_psi(
+  formula = n ~ n_lag + nt_lag,
+  data = df,
+  x_star = x_star,
+  theta = seq(0, 5, by = 0.5),
+  model = "lm"
+)
+}
+
+}
+\seealso{
+\code{\link{xeq}} for estimating equilibrium densities, and
+\code{\link{loocv}} for selecting the optimal weighting parameter.
 }
 \author{
 Akira Terui (\email{hanabi0111@gmail.com})

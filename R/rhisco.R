@@ -1,19 +1,41 @@
-#' Leave-One-Out Cross-Validation for Localized Regression
+#' Leave-One-Out Cross-Validation for Distance-Weighted Local Regression
 #'
-#' Computes the root mean squared error (RMSE) using leave-one-out cross-validation
-#' for localized regression models with distance-based weighting.
+#' Performs leave-one-out cross-validation (LOOCV) to evaluate localized regression models
+#' that apply distance-based weighting to observations. For each candidate value of the
+#' weighting parameter \code{theta}, the function computes the root mean squared error (RMSE)
+#' across all held-out samples.
 #'
 #' @param formula A model formula specifying the response and predictor variables.
-#' @param data A data frame containing the variables used in \code{formula}.
-#' @param theta Numeric vector. Candidate values for the weighting parameter, evaluated using leave-one-out cross-validation.
-#' @param model Character. Type of model to fit: one of \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.
-#' @param ... Additional arguments passed to the underlying model-fitting functions.
+#' @param data A data frame containing the variables referenced in \code{formula}.
+#' @param theta Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.
+#' @param model Character string specifying the model type to fit. Must be one of
+#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.
+#' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
-#' @importFrom stats lm glm predict dist terms
-#' @importFrom lme4 lmer glmer
+#' @details
+#' The function fits a localized regression model at each observation using all other
+#' data points as training data. Weights are assigned based on pairwise distances among
+#' predictor variables using an exponential decay function:
+#' \deqn{w_i = \exp(-\theta d_i / \bar{d})}
+#' where \eqn{d_i} is the Euclidean distance between the focal and training points, and \eqn{\bar{d}}
+#' is the mean distance from the focal point to all others. The mean squared prediction
+#' error is computed for each left-out observation, and the overall RMSE is returned.
+#'
+#' @return
+#' A numeric value giving the root mean squared error (RMSE) from leave-one-out cross-validation.
+#'
+#' @examples
+#' \dontrun{
+#' ## Example using a simple linear model
+#' df <- data.frame(
+#'   x1 = rnorm(20),
+#'   x2 = rnorm(20),
+#'   y  = rnorm(20)
+#' )
+#' loocv(y ~ x1 + x2, data = df, theta = 0.5, model = "lm")
+#' }
 #'
 #' @author Akira Terui (\email{hanabi0111@gmail.com})
-#'
 #' @export
 
 loocv <- function(formula,
@@ -24,7 +46,7 @@ loocv <- function(formula,
 
   ## get matrix X
   y <- all.vars(formula)[1]
-  v_cnm_x <- attr(terms(formula), "term.labels")
+  v_cnm_x <- attr(stats::terms(formula), "term.labels")
   v_cnm_x <- v_cnm_x[!grepl("\\|", v_cnm_x)]
 
   m_x <- data[, v_cnm_x] |>
@@ -82,7 +104,7 @@ loocv <- function(formula,
                                  w = w,
                                  ...)
 
-                   y0 <- predict(lw, newdata = data[i, , drop = FALSE])
+                   y0 <- stats::predict(lw, newdata = data[i, , drop = FALSE])
                    y1 <- data[i, y]
                    eps <- (y1 - y0)^2
 
@@ -95,24 +117,55 @@ loocv <- function(formula,
 }
 
 
-#' Estimate the Equilibrium Density of the Total Community
+#' Estimate the Equilibrium Density of a Localized Community Model
 #'
-#' Computes the equilibrium density of the total community based on a localized regression model.
+#' Estimates the equilibrium density of the total community using a localized regression
+#' approach with distance-based weighting. The equilibrium point is obtained iteratively,
+#' updating the local regression until convergence is reached.
 #'
-#' @param formula A model formula specifying the response and predictors.
-#' @param data A data frame containing the variables in \code{formula}.
-#' @param maxit Integer. Maximum number of iterations used to approximate the localized regression near the equilibrium.
-#' @param tol Numeric. Tolerance threshold for determining convergence of the equilibrium estimate.
-#' @param ... Additional arguments passed to other methods.
-#' @inheritParams loocv
+#' @param formula A model formula specifying the response and predictor variables.
+#' @param data A data frame containing the variables referenced in \code{formula}.
+#' @param theta Numeric vector. Candidate values of the distance-weighting parameter, evaluated using leave-one-out cross-validation to identify the optimal value.
+#' @param maxit Integer. Maximum number of iterations used to approximate the equilibrium density.
+#' @param tol Numeric. Convergence threshold for the iterative update of the equilibrium estimate.
+#' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
-#' @return Numeric value representing the estimated equilibrium density of the total community.
+#' @details
+#' This function estimates the equilibrium density (\eqn{x^*}) of the total community
+#' by iteratively fitting localized regression models. The equilibrium point is defined
+#' as the value of the predictor (\eqn{x}) for which the predicted response equals zero.
 #'
-#' @importFrom stats lm glm predict dist terms
-#' @importFrom lme4 lmer glmer
+#' For each iteration, the model is refitted with weights assigned according to
+#' the exponential distance-decay function:
+#' \deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
+#' where \eqn{d_i} is the absolute distance between the focal point and observation \eqn{i},
+#' and \eqn{\bar{d}} is the mean distance. The optimal weighting parameter \eqn{\theta_0}
+#' is selected using leave-one-out cross-validation via \code{\link{loocv}}.
+#'
+#' Iterations continue until the change in the equilibrium estimate between successive
+#' steps falls below \code{tol}, or until \code{maxit} iterations are reached.
+#'
+#' @return
+#' A numeric value representing the estimated equilibrium density (\eqn{x^*}) of the total community.
+#' The returned object also includes the following attributes:
+#' \itemize{
+#'   \item \code{"gap"} – the final difference between successive estimates (convergence criterion)
+#'   \item \code{"iteration"} – the total number of iterations performed
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' ## Example using a simple regression model
+#' df <- data.frame(
+#'   x = seq(1, 10, length.out = 20),
+#'   y = 5 - 0.5 * seq(1, 10, length.out = 20) + rnorm(20, 0, 0.2)
+#' )
+#' xeq(y ~ x, data = df, theta = seq(0, 5, by = 0.5))
+#' }
+#'
+#' @seealso \code{\link{loocv}} for model calibration using leave-one-out cross-validation.
 #'
 #' @author Akira Terui (\email{hanabi0111@gmail.com})
-#'
 #' @export
 
 xeq <- function(formula,
@@ -135,7 +188,7 @@ xeq <- function(formula,
   if (x_hat[1] < 0) stop("No feasible equilibrium exists.")
 
   ## x label
-  x_cnm <- attr(terms(formula), "term.labels")
+  x_cnm <- attr(stats::terms(formula), "term.labels")
 
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
@@ -171,25 +224,81 @@ xeq <- function(formula,
 }
 
 
-#' Estimate Historical Contingency (psi)
+#' Estimate Historical Contingency (ψ)
 #'
-#' Computes historical contingency (psi) based on equilibrium community density estimates.
+#' Estimates the degree of historical contingency (\eqn{\psi}) in community dynamics
+#' based on the equilibrium total community density (\eqn{x^*}). The statistic
+#' quantifies the probability that the intrinsic population growth rate at equilibrium
+#' is negative, given parameter uncertainty in a localized regression model.
 #'
-#' @param x_star Numeric. Equilibrium total community density. The estimate should be obtained from \code{xeq}.
-#' @param n_lag Character string specifying the column of lagged population density.
-#' @param nt_lag Character string specifying the column of lagged total community density.
-#' @param n_sim Integer. Number of random samples drawn from a multivariate normal distribution.
-#' @param ... Additional arguments passed to other methods.
-#' @inheritParams xeq
-#' @inheritParams loocv
+#' @param formula A model formula specifying the response and predictor variables.
+#' @param data A data frame containing the variables referenced in \code{formula}.
+#' @param x_star Numeric value representing the equilibrium total community density,
+#'   typically obtained from \code{\link{xeq}}.
+#' @param theta Numeric vector. Candidate values of the distance-weighting parameter,
+#'   evaluated via leave-one-out cross-validation to select the optimal value.
+#' @param n_lag Character string specifying the column name for lagged population density.
+#' @param nt_lag Character string specifying the column name for lagged total community density.
+#' @param n_sim Integer. Number of random samples drawn from a multivariate normal
+#'   distribution to propagate parameter uncertainty.
+#' @param model Character string specifying the model type to fit. Must be one of
+#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.
+#' @param ... Additional arguments passed to the underlying model-fitting functions.
+#'
+#' @details
+#' This function computes historical contingency (\eqn{\psi}) as the proportion of
+#' simulated intrinsic growth rates (\eqn{r}) that are negative at the equilibrium
+#' total community density (\eqn{x^*}). The procedure is as follows:
+#'
+#' \enumerate{
+#'   \item The optimal distance-weighting parameter (\eqn{\theta_0}) is estimated
+#'         using leave-one-out cross-validation (\code{\link{loocv}}).
+#'   \item A localized regression model is fit using exponential distance-based
+#'         weights:
+#'         \deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
+#'         where \eqn{d_i} is the distance from the focal point and \eqn{\bar{d}} is
+#'         the mean distance among observations.
+#'   \item Parameter uncertainty is propagated by simulating coefficients from a
+#'         multivariate normal distribution based on the model’s estimated covariance matrix.
+#'   \item For each simulated parameter set, the log-scale intrinsic rate of increase
+#'         (\eqn{r}) is computed as:
+#'         \deqn{r = \beta_0 + \beta_2 x^*}
+#'   \item The value of \eqn{\psi} is estimated as the proportion of simulations
+#'         where \eqn{r < 0}.
+#' }
+#'
+#' @return
+#' A numeric value representing the estimated historical contingency (\eqn{\psi}),
+#' with the following attributes:
+#' \itemize{
+#'   \item \code{"theta"} – the optimal distance-weighting parameter (\eqn{\theta_0})
+#'   \item \code{"message"} – model convergence information (if available)
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' ## Example with synthetic data
+#' df <- data.frame(
+#'   n_lag = rnorm(50, 10, 2),
+#'   nt_lag = rnorm(50, 10, 2),
+#'   n = rnorm(50, 10, 2)
+#' )
+#'
+#' x_star <- 10  # example equilibrium density
+#' get_psi(
+#'   formula = n ~ n_lag + nt_lag,
+#'   data = df,
+#'   x_star = x_star,
+#'   theta = seq(0, 5, by = 0.5),
+#'   model = "lm"
+#' )
+#' }
+#'
+#' @seealso
+#' \code{\link{xeq}} for estimating equilibrium densities, and
+#' \code{\link{loocv}} for selecting the optimal weighting parameter.
 #'
 #' @author Akira Terui (\email{hanabi0111@gmail.com})
-#'
-#' @importFrom stats lm glm predict dist terms
-#' @importFrom lme4 lmer glmer
-#'
-#' @return A numeric value representing the estimated historical contingency (psi).
-#'
 #' @export
 
 get_psi <- function(formula,

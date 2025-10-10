@@ -4,7 +4,7 @@
 \alias{lag_block}
 \title{Generate Lagged Values Within Groups}
 \usage{
-lag_block(data, y = "n", t = "t", index = NULL)
+lag_block(data, y = "n", t = "t", index = NULL, total = TRUE)
 }
 \arguments{
 \item{data}{A data frame containing at least the grouping, time, and response variables.}
@@ -17,6 +17,8 @@ used to order observations within each group. Default is \code{"t"}.}
 
 \item{index}{Character string specifying the grouping variable (e.g., species, site, ID).
 Default is \code{"species"}.}
+
+\item{total}{Logical. If \code{TRUE}, total community density will be calculated.}
 }
 \value{
 A data frame identical to \code{data} but with an additional column named
@@ -36,7 +38,7 @@ data <- data.frame(
   n = c(5, 6, 7, 8, 2, 3, 4, 5)
 )
 
-lag_block(data)
+lag_block(data, index = "species")
 
 }
 \seealso{

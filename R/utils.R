@@ -53,7 +53,7 @@ lag_base <- function(x, k = 1L) {
 #'   n = c(5, 6, 7, 8, 2, 3, 4, 5)
 #' )
 #'
-#' lag_block(data)
+#' lag_block(data, index = "species")
 #'
 #' @author Akira Terui, \email{hanabi0111@gmail.com}
 #'

@@ -2,28 +2,64 @@
 % Please edit documentation in R/rhisco.R
 \name{xeq}
 \alias{xeq}
-\title{Estimate the Equilibrium Density of the Total Community}
+\title{Estimate the Equilibrium Density of a Localized Community Model}
 \usage{
 xeq(formula, data, theta = seq(0, 10, by = 0.5), maxit = 50, tol = 1e-04, ...)
 }
 \arguments{
-\item{formula}{A model formula specifying the response and predictors.}
+\item{formula}{A model formula specifying the response and predictor variables.}
 
-\item{data}{A data frame containing the variables in \code{formula}.}
+\item{data}{A data frame containing the variables referenced in \code{formula}.}
 
-\item{theta}{Numeric vector. Candidate values for the weighting parameter, evaluated using leave-one-out cross-validation.}
+\item{theta}{Numeric vector. Candidate values of the distance-weighting parameter, evaluated using leave-one-out cross-validation to identify the optimal value.}
 
-\item{maxit}{Integer. Maximum number of iterations used to approximate the localized regression near the equilibrium.}
+\item{maxit}{Integer. Maximum number of iterations used to approximate the equilibrium density.}
 
-\item{tol}{Numeric. Tolerance threshold for determining convergence of the equilibrium estimate.}
+\item{tol}{Numeric. Convergence threshold for the iterative update of the equilibrium estimate.}
 
-\item{...}{Additional arguments passed to other methods.}
+\item{...}{Additional arguments passed to the underlying model-fitting functions.}
 }
 \value{
-Numeric value representing the estimated equilibrium density of the total community.
+A numeric value representing the estimated equilibrium density (\eqn{x^*}) of the total community.
+The returned object also includes the following attributes:
+\itemize{
+\item \code{"gap"} – the final difference between successive estimates (convergence criterion)
+\item \code{"iteration"} – the total number of iterations performed
+}
 }
 \description{
-Computes the equilibrium density of the total community based on a localized regression model.
+Estimates the equilibrium density of the total community using a localized regression
+approach with distance-based weighting. The equilibrium point is obtained iteratively,
+updating the local regression until convergence is reached.
+}
+\details{
+This function estimates the equilibrium density (\eqn{x^*}) of the total community
+by iteratively fitting localized regression models. The equilibrium point is defined
+as the value of the predictor (\eqn{x}) for which the predicted response equals zero.
+
+For each iteration, the model is refitted with weights assigned according to
+the exponential distance-decay function:
+\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
+where \eqn{d_i} is the absolute distance between the focal point and observation \eqn{i},
+and \eqn{\bar{d}} is the mean distance. The optimal weighting parameter \eqn{\theta_0}
+is selected using leave-one-out cross-validation via \code{\link{loocv}}.
+
+Iterations continue until the change in the equilibrium estimate between successive
+steps falls below \code{tol}, or until \code{maxit} iterations are reached.
+}
+\examples{
+\dontrun{
+## Example using a simple regression model
+df <- data.frame(
+  x = seq(1, 10, length.out = 20),
+  y = 5 - 0.5 * seq(1, 10, length.out = 20) + rnorm(20, 0, 0.2)
+)
+xeq(y ~ x, data = df, theta = seq(0, 5, by = 0.5))
+}
+
+}
+\seealso{
+\code{\link{loocv}} for model calibration using leave-one-out cross-validation.
 }
 \author{
 Akira Terui (\email{hanabi0111@gmail.com})

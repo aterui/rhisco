@@ -2,24 +2,51 @@
 % Please edit documentation in R/rhisco.R
 \name{loocv}
 \alias{loocv}
-\title{Leave-One-Out Cross-Validation for Localized Regression}
+\title{Leave-One-Out Cross-Validation for Distance-Weighted Local Regression}
 \usage{
 loocv(formula, data, theta, model = "lm", ...)
 }
 \arguments{
 \item{formula}{A model formula specifying the response and predictor variables.}
 
-\item{data}{A data frame containing the variables used in \code{formula}.}
+\item{data}{A data frame containing the variables referenced in \code{formula}.}
 
-\item{theta}{Numeric vector. Candidate values for the weighting parameter, evaluated using leave-one-out cross-validation.}
+\item{theta}{Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.}
 
-\item{model}{Character. Type of model to fit: one of \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.}
+\item{model}{Character string specifying the model type to fit. Must be one of
+\code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.}
 
-\item{...}{Additional arguments passed to the underlying model-fitting functions.}
+\item{...}{Additional arguments passed to the underlying model-fitting function.}
+}
+\value{
+A numeric value giving the root mean squared error (RMSE) from leave-one-out cross-validation.
 }
 \description{
-Computes the root mean squared error (RMSE) using leave-one-out cross-validation
-for localized regression models with distance-based weighting.
+Performs leave-one-out cross-validation (LOOCV) to evaluate localized regression models
+that apply distance-based weighting to observations. For each candidate value of the
+weighting parameter \code{theta}, the function computes the root mean squared error (RMSE)
+across all held-out samples.
+}
+\details{
+The function fits a localized regression model at each observation using all other
+data points as training data. Weights are assigned based on pairwise distances among
+predictor variables using an exponential decay function:
+\deqn{w_i = \exp(-\theta d_i / \bar{d})}
+where \eqn{d_i} is the Euclidean distance between the focal and training points, and \eqn{\bar{d}}
+is the mean distance from the focal point to all others. The mean squared prediction
+error is computed for each left-out observation, and the overall RMSE is returned.
+}
+\examples{
+\dontrun{
+## Example using a simple linear model
+df <- data.frame(
+  x1 = rnorm(20),
+  x2 = rnorm(20),
+  y  = rnorm(20)
+)
+loocv(y ~ x1 + x2, data = df, theta = 0.5, model = "lm")
+}
+
 }
 \author{
 Akira Terui (\email{hanabi0111@gmail.com})
