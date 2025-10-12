@@ -219,6 +219,8 @@ xeq <- function(formula,
   x_star <- x_hat[which.max(!is.na(x_hat))]
   attr(x_star, "gap") <- gap
   attr(x_star, "iteration") <- i + 1
+  attr(x_star, "theta") <- theta0
+  attr(x_star, "rmse") <- v_rmse
 
   return(x_star)
 }
