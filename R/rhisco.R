@@ -185,7 +185,10 @@ xeq <- function(formula,
 
   x_hat[1] <- -stats::coef(m0)[1] / stats::coef(m0)[2]
 
-  if (x_hat[1] < 0) stop("No feasible equilibrium exists.")
+  if (x_hat[1] < 0) {
+    message("No feasible equilibrium exists.")
+    return(NA)
+  }
 
   ## x label
   x_cnm <- attr(stats::terms(formula), "term.labels")
