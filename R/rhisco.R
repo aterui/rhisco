@@ -378,7 +378,7 @@ get_psi <- function(formula,
     if (rescale) {
       m_sim <- apply(m_sim,
                      MARGIN = 1,
-                     function(z) {
+                     FUN = function(z) {
 
                        ## intercept original
                        b0 <- z[1] -
@@ -401,8 +401,9 @@ get_psi <- function(formula,
                            Sigma = stats::vcov(m))
 
     if (rescale) {
-      m_sim <- apply(MARGIN = 1,
-                     function(z) {
+      m_sim <- apply(m_sim,
+                     MARGIN = 1,
+                     FUN = function(z) {
 
                        ## intercept original
                        b0 <- z[1] -
