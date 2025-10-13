@@ -18,4 +18,5 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Imports:
   MASS,
-  lme4
+  lme4,
+  glmmTMB

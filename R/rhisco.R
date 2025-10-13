@@ -9,7 +9,7 @@
 #' @param data A data frame containing the variables referenced in \code{formula}.
 #' @param theta Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.
 #' @param model Character string specifying the model type to fit. Must be one of
-#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.
+#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB}.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
 #' @details
@@ -86,6 +86,12 @@ loocv <- function(formula,
                                   weights = w,
                                   ...)
                     },
+                    glmmTMB = function(formula, data, w, ...) {
+                      glmmTMB::glmmTMB(formula,
+                                       data = data,
+                                       weights = w,
+                                       ...)
+                    },
                     stop("Unsupported model type")
   )
 
@@ -94,6 +100,7 @@ loocv <- function(formula,
 
                    ## training data
                    df_train <- data[-i, ]
+                   data[i, "w"] <- 1
 
                    ## calculate weights
                    mu_d <- mean(m_dist[i, -i])
@@ -104,7 +111,9 @@ loocv <- function(formula,
                                  w = w,
                                  ...)
 
-                   y0 <- stats::predict(lw, newdata = data[i, , drop = FALSE])
+                   y0 <- stats::predict(lw,
+                                        newdata = data[i, , drop = FALSE],
+                                        type = "link")
                    y1 <- data[[y]][i]
                    eps <- (y1 - y0)^2
 
@@ -248,7 +257,7 @@ xeq <- function(formula,
 #' @param n_sim Integer. Number of random samples drawn from a multivariate normal
 #'   distribution to propagate parameter uncertainty.
 #' @param model Character string specifying the model type to fit. Must be one of
-#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.
+#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
@@ -372,63 +381,57 @@ get_psi <- function(formula,
                                   data = data,
                                   weights = w,
                                   ...),
+              glmmTMB = glmmTMB::glmmTMB(formula,
+                                         data = data,
+                                         weights = w,
+                                         ...),
               stop("Unsupported model type")
   )
 
+  ## mean and var-covar matrix for simulated parameters
   v_id <- c("(Intercept)", n_lag, nt_lag)
 
   if (any(class(m) %in% c("lm", "glm"))) {
 
-    m_sim <- MASS::mvrnorm(n = n_sim,
-                           mu = stats::coef(m)[v_id],
-                           Sigma = stats::vcov(m)[v_id, v_id])
+    v_mu <- stats::coef(m)[v_id]
+    m_sigma <- stats::vcov(m)[v_id, v_id]
 
-    if (rescale) {
-      m_sim <- apply(m_sim,
-                     MARGIN = 1,
-                     FUN = function(z) {
-
-                       ## intercept original
-                       b0 <- z[1] -
-                         (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
-                         (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
-
-                       ## n0's effect original
-                       b1 <- z[2] / v_sigma[n_lag]
-
-                       ## nt0's effect original
-                       b2 <- z[3] / v_sigma[nt_lag]
-
-                       return(c(b0, b1, b2))
-                     }) |>
-        t()
-    }
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
 
-    m_sim <- MASS::mvrnorm(n = n_sim,
-                           mu = lme4::fixef(m)[v_id],
-                           Sigma = stats::vcov(m)[v_id, v_id])
+    v_mu <- lme4::fixef(m)[v_id]
+    m_sigma <- stats::vcov(m)[v_id, v_id]
 
-    if (rescale) {
-      m_sim <- apply(m_sim,
-                     MARGIN = 1,
-                     FUN = function(z) {
+  } else if (any(class(m) %in% c("glmmTMB"))) {
 
-                       ## intercept original
-                       b0 <- z[1] -
-                         (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
-                         (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
+    v_mu <- glmmTMB::fixef(m)$cond[v_id]
+    m_sigma <- stats::vcov(m)$cond[v_id, v_id]
 
-                       ## n0's effect original
-                       b1 <- z[2] / v_sigma[n_lag]
+  }
 
-                       ## nt0's effect original
-                       b2 <- z[3] / v_sigma[nt_lag]
+  ## get simulated parameters
+  m_sim <- MASS::mvrnorm(n = n_sim,
+                         mu = v_mu,
+                         Sigma = m_sigma)
 
-                       return(c(b0, b1, b2))
-                     }) |>
-        t()
-    }
+  if (rescale) {
+    m_sim <- apply(m_sim,
+                   MARGIN = 1,
+                   FUN = function(z) {
+
+                     ## intercept original
+                     b0 <- z[1] -
+                       (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
+                       (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
+
+                     ## n0's effect original
+                     b1 <- z[2] / v_sigma[n_lag]
+
+                     ## nt0's effect original
+                     b2 <- z[3] / v_sigma[nt_lag]
+
+                     return(c(b0, b1, b2))
+                   }) |>
+      t()
   }
 
   ## get a vector of simulated log-scale r
