@@ -112,8 +112,7 @@ loocv <- function(formula,
                                  ...)
 
                    y0 <- stats::predict(lw,
-                                        newdata = data[i, , drop = FALSE],
-                                        type = "link")
+                                        newdata = data[i, , drop = FALSE])
                    y1 <- data[[y]][i]
                    eps <- (y1 - y0)^2
 
