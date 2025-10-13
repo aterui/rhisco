@@ -325,7 +325,8 @@ get_psi <- function(formula,
                      loocv(formula,
                            data = data,
                            theta = x,
-                           model = model)
+                           model = model,
+                           ...)
                    })
 
   theta0 <- theta[which.min(v_rmse)]
@@ -373,10 +374,13 @@ get_psi <- function(formula,
               stop("Unsupported model type")
   )
 
+  v_id <- c("(Intercept)", n_lag, nt_lag)
+
   if (any(class(m) %in% c("lm", "glm"))) {
+
     m_sim <- MASS::mvrnorm(n = n_sim,
-                           mu = stats::coef(m),
-                           Sigma = stats::vcov(m))
+                           mu = stats::coef(m)[v_id],
+                           Sigma = stats::vcov(m)[v_id, v_id])
 
     if (rescale) {
       m_sim <- apply(m_sim,
@@ -399,9 +403,10 @@ get_psi <- function(formula,
         t()
     }
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
+
     m_sim <- MASS::mvrnorm(n = n_sim,
-                           mu = m@beta,
-                           Sigma = stats::vcov(m))
+                           mu = lme4::fixef(m)[v_id],
+                           Sigma = stats::vcov(m)[v_id, v_id])
 
     if (rescale) {
       m_sim <- apply(m_sim,
