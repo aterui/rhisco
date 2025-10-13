@@ -275,3 +275,106 @@ fixef_posterior <- function(m,
 
   return(post_sample)
 }
+
+#' Point predictions from INLA model fits
+#'
+#' Generate linear predictor estimates (posterior means) for fitted
+#' \code{INLA} model objects, optionally using new data.
+#'
+#' @param m A fitted \code{INLA} model object.
+#' @param newdata Optional data frame containing new observations
+#'   for which predictions are desired. Must contain all covariates
+#'   and random-effect grouping factors used in the model formula.
+#'   If \code{NULL}, predictions are computed for the data used to
+#'   fit the model.
+#' @param ... Additional arguments (currently ignored).
+#'
+#' @return
+#' A numeric vector of posterior mean predictions for the linear
+#' predictor (\eqn{\eta = X\beta + Zu}). Predictions are made at the
+#' population level for unseen random-effect levels (i.e., random effects
+#' not present in the training data are assumed to have mean zero).
+#'
+#' @details
+#' This function reconstructs the linear predictor by combining
+#' posterior means of the fixed and random effects from a fitted INLA
+#' model. Random effects corresponding to levels not present in the
+#' training data are set to zero, representing the population-level mean.
+#'
+#' Note that this function provides point estimates only; it does not
+#' propagate posterior uncertainty. For predictive uncertainty or
+#' posterior predictive distributions, use
+#' \code{\link[INLA]{inla.posterior.sample}} and compute predictions
+#' from sampled parameters.
+#'
+#' @seealso
+#' \code{\link[INLA]{inla}}, \code{\link[INLA]{inla.posterior.sample}}
+#'
+#' @examples
+#' \dontrun{
+#' library(INLA)
+#'
+#' set.seed(123)
+#' dat <- data.frame(
+#'   y = rnorm(20),
+#'   x = rnorm(20),
+#'   group = rep(1:4, each = 5)
+#' )
+#'
+#' fit <- inla(y ~ x + f(group, model = "iid"), data = dat)
+#'
+#' # Predictions for existing data
+#' head(point_predict(fit))
+#'
+#' # Predictions for new data (group 5 unseen → population mean)
+#' newdat <- data.frame(x = c(-1, 0, 1), group = c(1, 2, 5))
+#' point_predict(fit, newdata = newdat)
+#' }
+#'
+#' @export
+
+point_predict <- function(m,
+                          newdata = NULL,
+                          ...) {
+
+  # if no newdata, use model data
+  if (is.null(newdata)) {
+    newdata <- m$.args$data
+  }
+
+  # fixed effect
+  v_b <- m$summary.fixed[["mean"]]
+  v_cnm <- m$names.fixed
+  fix_form <- paste("~",
+                    paste(v_cnm[!grepl("[Ii]ntercept", v_cnm)],
+                          collapse = " + ")) |>
+    stats::as.formula()
+
+  X <- model.matrix(fix_form,
+                    data = newdata)
+
+  # random effect
+  ranef_names <- names(m$summary.random)
+  re_list <- list()
+
+  if (length(ranef_names) > 0) {
+
+    # loop across different random effects
+    for (rn in ranef_names) {
+      re <- m$summary.random[[rn]]
+      idx <- match(newdata[[rn]], re$ID)
+      idx[is.na(idx)] <- 0  # unseen levels → NA/0
+      re_mean <- ifelse(idx > 0, re$mean[idx], 0)
+      re_list[[rn]] <- re_mean
+    }
+
+    Z <- Reduce(`+`, re_list)
+  } else {
+    Z <- 0
+  }
+
+  # linear predictor for each sample
+  v_eta <- drop(X %*% v_b + Z)
+
+  return(v_eta)
+}
