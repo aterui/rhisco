@@ -108,4 +108,91 @@ lag_block <- function(data,
   return(df_lag)
 }
 
+#' Fit Linear Mixed Models Using INLA with lmer-Style Formulas
+#'
+#' This function allows you to fit linear mixed models using the
+#' \code{INLA} package while specifying formulas in the familiar
+#' \code{lme4::lmer} style (e.g., \code{y ~ x + (1|group)}). Random
+#' intercepts are automatically converted to \code{INLA}'s
+#' \code{f(group, model='iid')} format.
+#'
+#' @param formula A formula object in \code{lmer} style, e.g.,
+#'   \code{y ~ x + (1|group1) + (1|group2)}.
+#' @param data A data frame containing all variables used in the
+#'   formula.
+#' @param family The likelihood family for \code{INLA}. Defaults to
+#'   \code{"gaussian"}.
+#' @param ... Additional arguments passed to \code{INLA::inla()}.
+#'
+#' @return An \code{INLA} model object returned by
+#'   \code{INLA::inla()}, including posterior summaries and
+#'   fitted values.
+#'
+#' @details
+#' This wrapper function handles:
+#' \itemize{
+#'   \item Conversion of fixed effects and random intercepts
+#'     from \code{lmer}-style formulas to \code{INLA} format.
+#'   \item Multiple random intercepts.
+#' }
+#'
+#' Limitations:
+#' \itemize{
+#'   \item Does not currently support random slopes (e.g., \code{(x|group)}).
+#'   \item Requires \code{lme4} and \code{INLA} packages.
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' library(INLA)
+#' library(lme4)
+#'
+#' # Simulate example data
+#' set.seed(123)
+#' dat <- data.frame(
+#'   y = rnorm(20),
+#'   x = rnorm(20),
+#'   group = rep(1:4, each = 5)
+#' )
+#'
+#' # Fit model using wrapper
+#' fit <- inla_lmer(y ~ x + (1|group), data = dat)
+#' summary(fit)
+#' }
+#'
+#' @export
 
+inla_lmer <- function(formula,
+                      data,
+                      family = "gaussian",
+                      ...) {
+  # Convert lmer-style random effects to INLA format
+  # Example: y ~ x + (1|group) -> y ~ x + f(group, model="iid")
+
+  # Extract terms
+  tt <- stats::terms(formula, keep.order = TRUE)
+  res <- attr(tt, "variables")[[2]]
+  allt <- attr(tt, "term.labels")
+  fixt <- allt[!grepl("\\|", allt)]
+  rant <- lme4::findbars(formula) |>
+    sapply(FUN = function(x) as.character(x[[3]]))
+
+  fixt_inla <- paste(fixt, collapse = " + ")
+  rant_inla <- paste0("f(", rant, ", model = 'iid')",
+                      collapse = " + ")
+
+  # Convert random effects
+  formula_inla <- paste(res, "~",
+                        fixt_inla,
+                        " + ",
+                        rant_inla) |>
+    stats::as.formula()
+
+  # Run INLA
+  res <- inla(formula_inla,
+              data = data,
+              family = family,
+              ...)
+
+  return(res)
+}
