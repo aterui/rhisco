@@ -9,8 +9,8 @@ get_psi(
   data,
   x_star,
   theta = seq(0, 10, by = 0.5),
-  n_lag = "n_lag",
-  nt_lag = "nt_lag",
+  n_lag = attr(stats::terms(formula), "term.labels")[1],
+  nt_lag = attr(stats::terms(formula), "term.labels")[2],
   n_sim = 1000,
   model = "lm",
   rescale = TRUE,
@@ -36,7 +36,7 @@ evaluated via leave-one-out cross-validation to select the optimal value.}
 distribution to propagate parameter uncertainty.}
 
 \item{model}{Character string specifying the model type to fit. Must be one of
-\code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.}
+\code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.}
 
 \item{rescale}{Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.}
 

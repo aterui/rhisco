@@ -14,7 +14,7 @@ loocv(formula, data, theta, model = "lm", ...)
 \item{theta}{Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.}
 
 \item{model}{Character string specifying the model type to fit. Must be one of
-\code{"lm"}, \code{"glm"}, \code{"lmer"}, or \code{"glmer"}.}
+\code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }

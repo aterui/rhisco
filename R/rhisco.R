@@ -9,7 +9,7 @@
 #' @param data A data frame containing the variables referenced in \code{formula}.
 #' @param theta Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.
 #' @param model Character string specifying the model type to fit. Must be one of
-#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB}.
+#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
 #' @details
@@ -321,8 +321,8 @@ get_psi <- function(formula,
                     data,
                     x_star,
                     theta = seq(0, 10, by = 0.5),
-                    n_lag = "n_lag",
-                    nt_lag = "nt_lag",
+                    n_lag = attr(stats::terms(formula), "term.labels")[1],
+                    nt_lag = attr(stats::terms(formula), "term.labels")[2],
                     n_sim = 1000,
                     model = "lm",
                     rescale = TRUE,
