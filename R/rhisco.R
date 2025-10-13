@@ -199,7 +199,8 @@ xeq <- function(formula,
                      loocv(formula,
                            data = data,
                            theta = x,
-                           model = "lm")
+                           model = "lm",
+                           ...)
                    })
 
   theta0 <- theta[which.min(v_rmse)]
