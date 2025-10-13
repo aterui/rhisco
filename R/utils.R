@@ -197,10 +197,10 @@ inla_lmer <- function(formula,
   formula_inla <- stats::as.formula(formula_char)
 
   # Run INLA
-  res <- inla(formula_inla,
-              data = data,
-              family = family,
-              ...)
+  res <- INLA::inla(formula_inla,
+                    data = data,
+                    family = family,
+                    ...)
 
   return(res)
 }

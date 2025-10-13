@@ -19,4 +19,5 @@ RoxygenNote: 7.3.1
 Imports:
   MASS,
   lme4,
-  glmmTMB
+  glmmTMB,
+  INLA
