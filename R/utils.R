@@ -165,7 +165,9 @@ lag_block <- function(data,
 inla_lmer <- function(formula,
                       data,
                       family = "gaussian",
+                      control.compute = list(config = TRUE),
                       ...) {
+
   # Convert lmer-style random effects to INLA format
   # Example: y ~ x + (1|group) -> y ~ x + f(group, model="iid")
 
@@ -200,7 +202,75 @@ inla_lmer <- function(formula,
   res <- INLA::inla(formula_inla,
                     data = data,
                     family = family,
+                    control.compute = control.compute,
                     ...)
 
   return(res)
+}
+
+#' Extract Posterior Samples of Fixed Effects from an INLA Model
+#'
+#' This function extracts posterior samples for all fixed-effect coefficients
+#' from a fitted \code{INLA} model object. It provides a convenient interface
+#' for accessing parameter uncertainty in a format similar to
+#' \code{fixef()} in mixed-effects modeling frameworks.
+#'
+#' @param m A fitted \code{INLA} model object, typically returned by
+#'   \code{INLA::inla()} or a wrapper such as \code{inla_lmer()}.
+#' @param n Integer. The number of posterior samples to draw from the fitted
+#'   model. Default is \code{1000}.
+#'
+#' @return A numeric matrix of posterior samples with \code{n} rows (samples)
+#'   and one column per fixed-effect parameter. Column names correspond to
+#'   the fixed-effect names from the model.
+#'
+#' @details
+#' The function uses \code{INLA::inla.posterior.sample()} to draw samples
+#' from the joint posterior distribution and then evaluates each sample’s
+#' fixed-effect component using
+#' \code{INLA::inla.posterior.sample.eval()}.
+#'
+#' This allows users to summarize uncertainty in regression coefficients,
+#' visualize posterior densities, or propagate parameter uncertainty in
+#' downstream predictions.
+#'
+#' @examples
+#' \dontrun{
+#' library(INLA)
+#'
+#' # Example model
+#' set.seed(123)
+#' dat <- data.frame(
+#'   y = rnorm(20),
+#'   x = rnorm(20),
+#'   group = rep(1:4, each = 5)
+#' )
+#' fit <- inla(y ~ x + f(group, model = "iid"),
+#'             data = dat,
+#'             family = "gaussian")
+#'
+#' # Extract 500 posterior samples of fixed effects
+#' post <- fixef_posterior(fit, n = 500)
+#' }
+#'
+#' @export
+
+fixef_posterior <- function(m,
+                            n = 1000) {
+
+  if (!inherits(m, what = "inla"))
+    stop("m must be class 'inla'")
+
+  fixt <- m$names.fixed
+  post <- INLA::inla.posterior.sample(n = n,
+                                      result = m)
+
+  post_sample <- INLA::inla.posterior.sample.eval(fun = fixt,
+                                                  samples = post) |>
+    t()
+
+  colnames(post_sample) <- fixt
+  rownames(post_sample) <- NULL
+
+  return(post_sample)
 }
