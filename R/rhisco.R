@@ -9,7 +9,7 @@
 #' @param data A data frame containing the variables referenced in \code{formula}.
 #' @param theta Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.
 #' @param model Character string specifying the model type to fit. Must be one of
-#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.
+#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, \code{"glmmTMB"}, or \code{"inla"}.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
 #' @details
@@ -92,6 +92,12 @@ loocv <- function(formula,
                                        weights = w,
                                        ...)
                     },
+                    inla = function(formula, data, w, ...) {
+                      inla_lmer(formula,
+                                data = data,
+                                weights = w,
+                                ...)
+                    },
                     stop("Unsupported model type")
   )
 
@@ -103,16 +109,25 @@ loocv <- function(formula,
                    data[i, "w"] <- 1
 
                    ## calculate weights
+                   ## note: "inla" is sensitive to scaling
                    mu_d <- mean(m_dist[i, -i])
-                   df_train$w <- exp(-theta * m_dist[i, -i] / mu_d)
+                   w0 <- exp(-theta * m_dist[i, -i] / mu_d)
+                   df_train$w <- (w0 / sum(w0)) * nrow(df_train)
+
 
                    lw <- fit_fun(formula,
                                  data = df_train,
                                  w = w,
                                  ...)
 
-                   y0 <- stats::predict(lw,
-                                        newdata = data[i, , drop = FALSE])
+                   if (inherits(lw, "inla")) {
+                     y0 <- point_predict(lw,
+                                         newdata = data[i, , drop = FALSE])
+                   } else {
+                     y0 <- stats::predict(lw,
+                                          newdata = data[i, , drop = FALSE])
+                   }
+
                    y1 <- data[[y]][i]
                    eps <- (y1 - y0)^2
 
