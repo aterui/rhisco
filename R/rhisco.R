@@ -447,9 +447,12 @@ get_psi <- function(formula,
 
   if (class(m) %in% c("lm", "glm")) {
     note <- m$converged
-  } else {
+  } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
     note <- summary(m)$optinfo$conv$lme4$messages
+  } else if (any(class(m) %in% c("glmmTMB"))) {
+    note <- m$fit$message
   }
+
   attr(psi, "message") <- note
   attr(psi, "theta") <- theta0
 
