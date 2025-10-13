@@ -15,10 +15,20 @@ lintr::lint_package()
 #usethis::use_coverage()
 # covr::package_coverage()
 
-# build website -----------------------------------------------------------
 
-# Run once to configure package to use pkgdown
-#usethis::use_pkgdown()
+# test run ----------------------------------------------------------------
 
-# Run to build the website
-#pkgdown::build_site()
+df0 <- data.frame(t = rep(1:10, 3),
+                  species = rep(1:3, each = 10),
+                  n = runif(30))
+
+df1 <- lag_block(df0,
+                 index = "species") |>
+  dplyr::mutate(log_r = log(n) - log(n_lag)) |>
+  na.omit()
+
+loocv(log_r ~ n_lag + nt_lag + (1|species),
+      data = df1,
+      theta = 0.1,
+      model = "glmmTMB")
+
