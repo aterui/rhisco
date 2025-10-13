@@ -22,6 +22,8 @@ formula.}
 \item{family}{The likelihood family for \code{INLA}. Defaults to
 \code{"gaussian"}.}
 
+\item{control.compute}{\code{control.compute} argument in \code{INLA::inla()}.}
+
 \item{...}{Additional arguments passed to \code{INLA::inla()}.}
 }
 \value{

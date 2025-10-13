@@ -122,6 +122,7 @@ lag_block <- function(data,
 #'   formula.
 #' @param family The likelihood family for \code{INLA}. Defaults to
 #'   \code{"gaussian"}.
+#' @param control.compute \code{control.compute} argument in \code{INLA::inla()}.
 #' @param ... Additional arguments passed to \code{INLA::inla()}.
 #'
 #' @return An \code{INLA} model object returned by
