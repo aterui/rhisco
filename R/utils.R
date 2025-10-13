@@ -171,22 +171,30 @@ inla_lmer <- function(formula,
 
   # Extract terms
   tt <- stats::terms(formula, keep.order = TRUE)
+  v_bars <- lme4::findbars(formula)
+
   res <- attr(tt, "variables")[[2]]
   allt <- attr(tt, "term.labels")
   fixt <- allt[!grepl("\\|", allt)]
-  rant <- lme4::findbars(formula) |>
-    sapply(FUN = function(x) as.character(x[[3]]))
-
   fixt_inla <- paste(fixt, collapse = " + ")
-  rant_inla <- paste0("f(", rant, ", model = 'iid')",
-                      collapse = " + ")
 
   # Convert random effects
-  formula_inla <- paste(res, "~",
-                        fixt_inla,
-                        " + ",
-                        rant_inla) |>
-    stats::as.formula()
+  formula_char <- paste(res, "~",
+                        fixt_inla)
+
+  if (!is.null(v_bars)) {
+    rant <- v_bars |>
+      sapply(FUN = function(x) as.character(x[[3]]))
+
+    rant_inla <- paste0("f(", rant, ", model = 'iid')",
+                        collapse = " + ")
+
+    formula_char <- paste(formula_char,
+                          " + ",
+                          rant_inla)
+  }
+
+  formula_inla <- stats::as.formula(formula_char)
 
   # Run INLA
   res <- inla(formula_inla,
