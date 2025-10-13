@@ -10,6 +10,8 @@
 #' @param theta Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.
 #' @param model Character string specifying the model type to fit. Must be one of
 #'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, \code{"glmmTMB"}, or \code{"inla"}.
+#' @param size Integer scalar. The number of subset data points for leave-one-out cross validation.
+#' @param seed Integer scalar specifying a random seed.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
 #' @details
@@ -42,7 +44,12 @@ loocv <- function(formula,
                   data,
                   theta,
                   model = "lm",
+                  size = nrow(data),
+                  seed = NULL,
                   ...) {
+
+  ## define resample
+  resample <- function(x, ...) x[sample.int(length(x), ...)]
 
   ## get matrix X
   y <- all.vars(formula)[1]
@@ -58,7 +65,12 @@ loocv <- function(formula,
                         upper = TRUE) |>
     data.matrix()
 
-  v <- seq_len(nrow(data))
+  ## select random subset
+  if (!is.null(seed))
+    set.seed(seed)
+
+  v <- seq_len(nrow(data)) |>
+    resample(size = size, replace = FALSE)
 
   ## define model fitting function once
   fit_fun <- switch(model,
@@ -113,7 +125,6 @@ loocv <- function(formula,
                    mu_d <- mean(m_dist[i, -i])
                    w0 <- exp(-theta * m_dist[i, -i] / mu_d)
                    df_train$w <- (w0 / sum(w0)) * nrow(df_train)
-
 
                    lw <- fit_fun(formula,
                                  data = df_train,
