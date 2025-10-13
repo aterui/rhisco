@@ -375,6 +375,7 @@ point_predict <- function(m,
 
   # linear predictor for each sample
   v_eta <- drop(X %*% v_b + Z)
+  names(v_eta) <- NULL
 
   return(v_eta)
 }
