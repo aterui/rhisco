@@ -107,3 +107,57 @@ lag_block <- function(data,
 
   return(df_lag)
 }
+
+
+mcmc_lmer <- function(formula, data,
+                      family = "gaussian",
+                      prior = NULL,
+                      nitt = 13000, burnin = 3000, thin = 10,
+                      verbose = FALSE, ...) {
+  # Ensure required package
+  if (!requireNamespace("MCMCglmm", quietly = TRUE))
+    stop("Package 'MCMCglmm' is required.")
+
+  # Extract fixed and random parts from the lmer-style formula
+  # e.g., y ~ x + (1|group) + (1|site)
+  terms <- lme4::findbars(formula)
+
+  if (length(terms) == 0) {
+    stop("No random effects detected. Use standard MCMCglmm for fixed-only models.")
+  }
+
+  # Build random-effect formula for MCMCglmm
+  rand_terms <- paste0("~", paste(sapply(terms, function(x) {
+    # e.g., converts (1 | group) -> group
+    as.character(x[[3]])
+  }), collapse = " + "))
+
+  # Remove random terms from the main formula to get fixed effects
+  fixed_formula <- stats::reformulate(
+    attr(stats::terms(formula), "term.labels"),
+    response = all.vars(formula)[1]
+  )
+
+  # Default weak priors if none provided
+  if (is.null(prior)) {
+    prior <- list(
+      R = list(V = 1, nu = 0.002),
+      G = lapply(terms, function(i) list(V = 1, nu = 0.002))
+    )
+  }
+
+  # Fit MCMCglmm model
+  fit <- MCMCglmm::MCMCglmm(
+    fixed = fixed_formula,
+    random = as.formula(rand_terms),
+    data = data,
+    family = family,
+    prior = prior,
+    nitt = nitt, burnin = burnin, thin = thin,
+    verbose = verbose, ...
+  )
+
+  fit$call <- match.call()
+  return(fit)
+}
+
