@@ -4,7 +4,13 @@
 \alias{inla_lmer}
 \title{Fit Linear Mixed Models Using INLA with lmer-Style Formulas}
 \usage{
-inla_lmer(formula, data, family = "gaussian", ...)
+inla_lmer(
+  formula,
+  data,
+  family = "gaussian",
+  control.compute = list(config = TRUE),
+  ...
+)
 }
 \arguments{
 \item{formula}{A formula object in \code{lmer} style, e.g.,
