@@ -343,19 +343,9 @@ get_psi <- function(formula,
                     rescale = TRUE,
                     ...) {
 
-  ## estimate best theta with leave-one-out cross validation
-  v_rmse <- sapply(theta,
-                   function(x) {
-                     loocv(formula,
-                           data = data,
-                           theta = x,
-                           model = model,
-                           ...)
-                   })
+  # reformat data -----------------------------------------------------------
 
-  theta0 <- theta[which.min(v_rmse)]
-
-  ## distance
+  ## Euclidean distance to the point of approximation
   data[["d"]] <- sqrt(data[[n_lag]]^2 + (data[[nt_lag]] - x_star)^2)
 
   ## mean and sd
@@ -373,9 +363,22 @@ get_psi <- function(formula,
                             scale = TRUE)
   }
 
+  # fit ---------------------------------------------------------------------
+
+  ## estimate best theta with leave-one-out cross validation
+  v_rmse <- sapply(theta,
+                   function(x) {
+                     loocv(formula,
+                           data = data,
+                           theta = x,
+                           model = model,
+                           ...)
+                   })
+
+  theta0 <- theta[which.min(v_rmse)]
+
   ## get scaled weight
   w0 <- with(data, exp(-theta0 * (d / mean(d))))
-
   data$w <- w0 / sum(w0)
 
   m <- switch(model,
