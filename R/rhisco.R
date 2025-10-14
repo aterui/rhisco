@@ -107,17 +107,6 @@ loocv <- function(formula,
                     stop("Unsupported model type")
   )
 
-  ## define inverse link function
-  if (!missing(family)) {
-    link <- switch(family,
-                   gaussian = identity,
-                   poisson = log,
-                   binomial = boot::logit,
-                   stop("Unsupported family"))
-  } else {
-    link <- identity
-  }
-
   rmse <- sapply(v,
                  function(i) {
 
@@ -137,9 +126,10 @@ loocv <- function(formula,
                                  ...)
 
                    y0 <- stats::predict(lw,
-                                        newdata = data[i, , drop = FALSE])
+                                        newdata = data[i, , drop = FALSE],
+                                        type = "response")
 
-                   y1 <- link(data[[y]][i])
+                   y1 <- data[[y]][i]
                    eps <- (y1 - y0)^2
                    return(eps)
                  }) |>
