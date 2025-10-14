@@ -4,7 +4,7 @@
 \alias{loocv}
 \title{Leave-One-Out Cross-Validation for Distance-Weighted Local Regression}
 \usage{
-loocv(formula, data, theta, model = "lm", ...)
+loocv(formula, data, theta, model = "lm", size = nrow(data), seed = NULL, ...)
 }
 \arguments{
 \item{formula}{A model formula specifying the response and predictor variables.}
@@ -15,6 +15,10 @@ loocv(formula, data, theta, model = "lm", ...)
 
 \item{model}{Character string specifying the model type to fit. Must be one of
 \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.}
+
+\item{size}{Integer scalar. The number of subset data points for leave-one-out cross validation.}
+
+\item{seed}{Integer scalar specifying a random seed.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }

@@ -1,1 +1,1 @@
-utils::globalVariables(c("w", "d"))
+utils::globalVariables(c("w", "d", "family"))

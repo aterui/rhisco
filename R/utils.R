@@ -350,8 +350,8 @@ point_predict <- function(m,
                           collapse = " + ")) |>
     stats::as.formula()
 
-  X <- model.matrix(fix_form,
-                    data = newdata)
+  X <- stats::model.matrix(fix_form,
+                           data = newdata)
 
   # random effect
   ranef_names <- names(m$summary.random)

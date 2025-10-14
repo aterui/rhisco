@@ -9,7 +9,7 @@
 #' @param data A data frame containing the variables referenced in \code{formula}.
 #' @param theta Numeric scalar. A candidate value of the distance-weighting parameter to be evaluated via LOOCV.
 #' @param model Character string specifying the model type to fit. Must be one of
-#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, \code{"glmmTMB"}, or \code{"inla"}.
+#'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.
 #' @param size Integer scalar. The number of subset data points for leave-one-out cross validation.
 #' @param seed Integer scalar specifying a random seed.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
@@ -104,21 +104,26 @@ loocv <- function(formula,
                                        weights = w,
                                        ...)
                     },
-                    inla = function(formula, data, w, ...) {
-                      inla_lmer(formula,
-                                data = data,
-                                weights = w,
-                                ...)
-                    },
                     stop("Unsupported model type")
   )
+
+  ## define inverse link function
+  if (!missing(family)) {
+    link <- switch(family,
+                   gaussian = identity,
+                   poisson = log,
+                   binomial = boot::logit,
+                   stop("Unsupported family"))
+  } else {
+    link <- identity
+  }
 
   rmse <- sapply(v,
                  function(i) {
 
                    ## training data
                    df_train <- data[-i, ]
-                   data[i, "w"] <- 1
+                   data[i, "w"] <- nrow(df_train)
 
                    ## calculate weights
                    ## note: "inla" is sensitive to scaling
@@ -131,17 +136,11 @@ loocv <- function(formula,
                                  w = w,
                                  ...)
 
-                   if (inherits(lw, "inla")) {
-                     y0 <- point_predict(lw,
-                                         newdata = data[i, , drop = FALSE])
-                   } else {
-                     y0 <- stats::predict(lw,
-                                          newdata = data[i, , drop = FALSE])
-                   }
+                   y0 <- stats::predict(lw,
+                                        newdata = data[i, , drop = FALSE])
 
-                   y1 <- data[[y]][i]
+                   y1 <- link(data[[y]][i])
                    eps <- (y1 - y0)^2
-
                    return(eps)
                  }) |>
     mean() |>
