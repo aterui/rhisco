@@ -27,6 +27,11 @@ df1 <- lag_block(df0,
   dplyr::mutate(log_r = log(n) - log(n_lag)) |>
   na.omit()
 
+a <- inla_lmer(log_r ~ n_lag + nt_lag,
+               data = df1,
+               control.compute = list(config = TRUE,
+                                      cpo = TRUE))
+
 loocv(log_r ~ n_lag + nt_lag + (1|species),
       data = df1,
       theta = 0.1,
