@@ -413,4 +413,3 @@ get_dfun <- function(type) {
          stop("Unsupported type"))
 
 }
-
