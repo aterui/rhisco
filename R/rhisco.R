@@ -120,7 +120,7 @@ loocv <- function(formula,
                    data[i, "w"] <- nrow(df_train)
 
                    ## calculate weights
-                   w0 <- dfun(m_dist[i, - i])
+                   w0 <- dfun(m_dist[i, - i], theta = theta)
                    df_train$w <- (w0 / sum(w0)) * nrow(df_train)
 
                    lw <- fit_fun(formula,
@@ -199,7 +199,11 @@ xeq <- function(formula,
                 theta = seq(0, 10, by = 0.5),
                 maxit = 50,
                 tol = 1E-4,
+                type = "gaussian",
                 ...) {
+
+  ## define dfun
+  dfun <- get_dfun(type)
 
   ## initialize x_hat
   x_hat <- rep(NA, times = maxit)
@@ -226,6 +230,7 @@ xeq <- function(formula,
                            data = data,
                            theta = x,
                            model = "lm",
+                           type = type,
                            ...)
                    })
 
@@ -233,7 +238,7 @@ xeq <- function(formula,
 
   for (i in seq_len(maxit - 1)) {
     d <- abs(data[, x_cnm, drop = TRUE] - x_hat[i])
-    w0 <- exp(-theta0 * (d / mean(d)))
+    w0 <- dfun(d, theta = theta0)
     data$w <- w0 / sum(w0)
 
     m <- stats::lm(formula,
@@ -276,7 +281,7 @@ xeq <- function(formula,
 #' @param model Character string specifying the model type to fit. Must be one of
 #'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
-#' @param size Integer. Subsample size for leave-one-out cross validation.
+#' @param size Integer. Sub-sample size for leave-one-out cross validation.
 #' @param seed Integer. Random seed for leave-one-out cross validation.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
