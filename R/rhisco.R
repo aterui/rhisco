@@ -276,6 +276,8 @@ xeq <- function(formula,
 #' @param model Character string specifying the model type to fit. Must be one of
 #'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
+#' @param size Integer. Subsample size for leave-one-out cross validation.
+#' @param seed Integer. Random seed for leave-one-out cross validation.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
 #' @details
@@ -344,6 +346,8 @@ get_psi <- function(formula,
                     n_sim = 1000,
                     model = "lm",
                     rescale = TRUE,
+                    size = min(100, nrow(data)),
+                    seed = NULL,
                     ...) {
 
   # reformat data -----------------------------------------------------------
@@ -368,6 +372,8 @@ get_psi <- function(formula,
 
   # fit ---------------------------------------------------------------------
 
+  if (is.null(seed)) seed <- stats::rpois(1, 100)
+
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
                    function(x) {
@@ -375,6 +381,8 @@ get_psi <- function(formula,
                            data = data,
                            theta = x,
                            model = model,
+                           size = size,
+                           seed = seed,
                            ...)
                    })
 
