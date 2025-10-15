@@ -497,6 +497,15 @@ get_psi <- function(formula,
     note <- m$fit$message
   }
 
+  # Convert everything to character
+  if (is.list(note)) {
+    note <- paste(unlist(note), collapse = " | ")
+  } else if (length(note) != 0){
+    note <- as.character(note)  # assign back to note
+  } else {
+    note <- NA_character_
+  }
+
   attr(psi, "message") <- note
   attr(psi, "theta") <- theta0
   attr(psi, "rmse") <- v_rmse
