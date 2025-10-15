@@ -8,12 +8,15 @@ get_psi(
   formula,
   data,
   x_star,
-  theta = seq(0, 10, by = 0.5),
+  theta = seq(0.5, 10, by = 0.5),
   n_lag = attr(stats::terms(formula), "term.labels")[1],
   nt_lag = attr(stats::terms(formula), "term.labels")[2],
   n_sim = 1000,
   model = "lm",
   rescale = TRUE,
+  size = min(100, nrow(data)),
+  seed = NULL,
+  type = "gaussian",
   ...
 )
 }
@@ -39,6 +42,12 @@ distribution to propagate parameter uncertainty.}
 \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.}
 
 \item{rescale}{Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.}
+
+\item{size}{Integer. Sub-sample size for leave-one-out cross validation.}
+
+\item{seed}{Integer. Random seed for leave-one-out cross validation.}
+
+\item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting functions.}
 }

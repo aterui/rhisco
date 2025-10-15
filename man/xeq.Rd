@@ -4,7 +4,15 @@
 \alias{xeq}
 \title{Estimate the Equilibrium Density of a Localized Community Model}
 \usage{
-xeq(formula, data, theta = seq(0, 10, by = 0.5), maxit = 50, tol = 1e-04, ...)
+xeq(
+  formula,
+  data,
+  theta = seq(0.5, 10, by = 0.5),
+  maxit = 50,
+  tol = 1e-04,
+  type = "gaussian",
+  ...
+)
 }
 \arguments{
 \item{formula}{A model formula specifying the response and predictor variables.}
@@ -16,6 +24,8 @@ xeq(formula, data, theta = seq(0, 10, by = 0.5), maxit = 50, tol = 1e-04, ...)
 \item{maxit}{Integer. Maximum number of iterations used to approximate the equilibrium density.}
 
 \item{tol}{Numeric. Convergence threshold for the iterative update of the equilibrium estimate.}
+
+\item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting functions.}
 }

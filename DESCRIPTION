@@ -1,16 +1,15 @@
 Package: rhisco
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Historical Contingency
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Jane", "Doe",
-      email = "jane@example.com",
+      "Akira", "Terui",
+      email = "hanabi0111@gmail.com",
       role = c("aut", "cre")
     )
   )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
+Description: Estimate historical contingency psi from empirical time-series.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -20,5 +19,4 @@ Imports:
   MASS,
   lme4,
   glmmTMB,
-  INLA,
-  boot
+  INLA
