@@ -363,11 +363,13 @@ get_psi <- function(formula,
   if (rescale) {
     data[[n_lag]] <- scale(data[[n_lag]],
                            center = TRUE,
-                           scale = TRUE)
+                           scale = TRUE) |>
+      c()
 
     data[[nt_lag]] <- scale(data[[nt_lag]],
                             center = TRUE,
-                            scale = TRUE)
+                            scale = TRUE) |>
+      c()
   }
 
   # fit ---------------------------------------------------------------------
