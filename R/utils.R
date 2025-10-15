@@ -379,3 +379,38 @@ point_predict <- function(m,
 
   return(v_eta)
 }
+
+#' Generate a distance-based weighting function
+#'
+#' Returns a function that computes weights based on distance, using either
+#' an exponential or Gaussian kernel.
+#'
+#' @param type Character string specifying the kernel type. Options are
+#'   `"exp"` (exponential) or `"gaussian"`.
+#'
+#' @return A function of the form \code{f(x, theta)} that computes weights
+#'   for a numeric vector \code{x} given parameter \code{theta}.
+#'
+#' @examples
+#' dfun <- get_dfun("exp")
+#' dfun(1:5, theta = 0.5)
+#'
+#' @export
+
+get_dfun <- function(type) {
+
+  switch(type,
+         exp = function(x, theta) {
+           d <- x / mean(x)
+           w <- exp(-theta * d)
+           return(w)
+         },
+         gaussian = function(x, theta) {
+           d <- x / mean(x)
+           w <- exp(-d^2 / (2 * theta^2))
+           return(w)
+         },
+         stop("Unsupported type"))
+
+}
+
