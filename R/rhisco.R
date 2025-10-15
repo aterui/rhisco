@@ -154,6 +154,7 @@ loocv <- function(formula,
 #' @param theta Numeric vector. Candidate values of the distance-weighting parameter, evaluated using leave-one-out cross-validation to identify the optimal value.
 #' @param maxit Integer. Maximum number of iterations used to approximate the equilibrium density.
 #' @param tol Numeric. Convergence threshold for the iterative update of the equilibrium estimate.
+#' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
 #' @details
@@ -196,14 +197,11 @@ loocv <- function(formula,
 
 xeq <- function(formula,
                 data,
-                theta = seq(0, 10, by = 0.5),
+                theta = seq(0.5, 10, by = 0.5),
                 maxit = 50,
                 tol = 1E-4,
                 type = "gaussian",
                 ...) {
-
-  ## define dfun
-  dfun <- get_dfun(type)
 
   ## initialize x_hat
   x_hat <- rep(NA, times = maxit)
@@ -235,6 +233,9 @@ xeq <- function(formula,
                    })
 
   theta0 <- theta[which.min(v_rmse)]
+
+  ## define dfun
+  dfun <- get_dfun(type)
 
   for (i in seq_len(maxit - 1)) {
     d <- abs(data[, x_cnm, drop = TRUE] - x_hat[i])
@@ -283,6 +284,7 @@ xeq <- function(formula,
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
 #' @param size Integer. Sub-sample size for leave-one-out cross validation.
 #' @param seed Integer. Random seed for leave-one-out cross validation.
+#' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
 #' @details
@@ -345,7 +347,7 @@ xeq <- function(formula,
 get_psi <- function(formula,
                     data,
                     x_star,
-                    theta = seq(0, 10, by = 0.5),
+                    theta = seq(0.5, 10, by = 0.5),
                     n_lag = attr(stats::terms(formula), "term.labels")[1],
                     nt_lag = attr(stats::terms(formula), "term.labels")[2],
                     n_sim = 1000,
@@ -353,6 +355,7 @@ get_psi <- function(formula,
                     rescale = TRUE,
                     size = min(100, nrow(data)),
                     seed = NULL,
+                    type = "gaussian",
                     ...) {
 
   # reformat data -----------------------------------------------------------
@@ -390,13 +393,18 @@ get_psi <- function(formula,
                            model = model,
                            size = size,
                            seed = seed,
+                           type = type,
                            ...)
                    })
 
+  names(v_rmse) <- theta
   theta0 <- theta[which.min(v_rmse)]
 
+  ## define dfun
+  dfun <- get_dfun(type)
+
   ## get scaled weight
-  w0 <- with(data, exp(-theta0 * (d / mean(d))))
+  w0 <- with(data, dfun(d, theta = theta0))
   data$w <- w0 / sum(w0)
 
   m <- switch(model,
@@ -491,6 +499,7 @@ get_psi <- function(formula,
 
   attr(psi, "message") <- note
   attr(psi, "theta") <- theta0
+  attr(psi, "rmse") <- v_rmse
 
   return(psi)
 }
