@@ -410,24 +410,24 @@ get_psi <- function(formula,
 
   if (any(class(m) %in% c("lm", "glm"))) {
 
-    v_mu <- stats::coef(m)[v_id]
+    v_beta <- stats::coef(m)[v_id]
     m_sigma <- stats::vcov(m)[v_id, v_id]
 
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
 
-    v_mu <- lme4::fixef(m)[v_id]
+    v_beta <- lme4::fixef(m)[v_id]
     m_sigma <- stats::vcov(m)[v_id, v_id]
 
   } else if (any(class(m) %in% c("glmmTMB"))) {
 
-    v_mu <- glmmTMB::fixef(m)$cond[v_id]
+    v_beta <- glmmTMB::fixef(m)$cond[v_id]
     m_sigma <- stats::vcov(m)$cond[v_id, v_id]
 
   }
 
   ## get simulated parameters
   m_sim <- MASS::mvrnorm(n = n_sim,
-                         mu = v_mu,
+                         mu = v_beta,
                          Sigma = m_sigma)
 
   if (rescale) {
