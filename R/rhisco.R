@@ -12,6 +12,7 @@
 #'   \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.
 #' @param size Integer scalar. The number of subset data points for leave-one-out cross validation.
 #' @param seed Integer scalar specifying a random seed.
+#' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
 #' @details
@@ -46,10 +47,14 @@ loocv <- function(formula,
                   model = "lm",
                   size = nrow(data),
                   seed = NULL,
+                  type = "gaussian",
                   ...) {
 
   ## define resample
   resample <- function(x, ...) x[sample.int(length(x), ...)]
+
+  ## define dfun
+  dfun <- get_dfun(type)
 
   ## get matrix X
   y <- all.vars(formula)[1]
@@ -115,9 +120,7 @@ loocv <- function(formula,
                    data[i, "w"] <- nrow(df_train)
 
                    ## calculate weights
-                   ## note: "inla" is sensitive to scaling
-                   mu_d <- mean(m_dist[i, -i])
-                   w0 <- exp(-theta * m_dist[i, -i] / mu_d)
+                   w0 <- dfun(m_dist[i, - i])
                    df_train$w <- (w0 / sum(w0)) * nrow(df_train)
 
                    lw <- fit_fun(formula,
