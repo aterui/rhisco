@@ -387,6 +387,8 @@ point_predict <- function(m,
 #'
 #' @param type Character string specifying the kernel type. Options are
 #'   `"exp"` (exponential) or `"gaussian"`.
+#' @param method Character string specifying the scaling method. Options are
+#'   `"mean"` or `"max"`.
 #'
 #' @return A function of the form \code{f(x, theta)} that computes weights
 #'   for a numeric vector \code{x} given parameter \code{theta}.
@@ -397,16 +399,22 @@ point_predict <- function(m,
 #'
 #' @export
 
-get_dfun <- function(type) {
+get_dfun <- function(type,
+                     method = "max") {
+
+  f <- switch(method,
+              max = max,
+              mean = mean,
+              stop("Unsupported method"))
 
   switch(type,
          exp = function(x, theta) {
-           d <- x / mean(x)
+           d <- x / f(x)
            w <- exp(-theta * d)
            return(w)
          },
          gaussian = function(x, theta) {
-           d <- x / mean(x)
+           d <- x / f(x)
            w <- exp(-d^2 / (2 * theta^2))
            return(w)
          },
