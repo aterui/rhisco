@@ -12,6 +12,7 @@ loocv(
   size = nrow(data),
   seed = NULL,
   type = "gaussian",
+  method = "max",
   ...
 )
 }
@@ -31,6 +32,8 @@ loocv(
 
 \item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
+\item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
+
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
 \value{
@@ -43,13 +46,19 @@ weighting parameter \code{theta}, the function computes the root mean squared er
 across all held-out samples.
 }
 \details{
-The function fits a localized regression model at each observation using all other
-data points as training data. Weights are assigned based on pairwise distances among
-predictor variables using an exponential decay function:
-\deqn{w_i = \exp(-\theta d_i / \bar{d})}
-where \eqn{d_i} is the Euclidean distance between the focal and training points, and \eqn{\bar{d}}
-is the mean distance from the focal point to all others. The mean squared prediction
-error is computed for each left-out observation, and the overall RMSE is returned.
+This function evaluates localized regression models using leave-one-out cross-validation (LOOCV)
+with distance-based weighting. For each observation selected in the subset, the model is trained
+on all remaining data points, and the held-out observation is used for prediction. The squared
+prediction errors across all test points are averaged to compute the overall root mean squared error (RMSE).
+
+Distance-based weights are computed using one of two kernel functions:
+\describe{
+\item{Exponential:}{\deqn{w_i = \exp(-\theta d_i / \bar{d})}}
+\item{Gaussian:}{\deqn{w_i = \exp(- (d_i / \bar{d})^2 / (2\theta^2))}}
+}
+where \eqn{d_i} is the Euclidean distance between the focal (test) point and each training point,
+and \eqn{\bar{d}} is the mean distance from the focal point to all others. Each weight is normalized
+such that the total weight equals the number of training samples, maintaining comparability across fits.
 }
 \examples{
 \dontrun{

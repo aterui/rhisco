@@ -17,6 +17,7 @@ get_psi(
   size = min(100, nrow(data)),
   seed = NULL,
   type = "gaussian",
+  method = "max",
   ...
 )
 }
@@ -49,6 +50,8 @@ distribution to propagate parameter uncertainty.}
 
 \item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
+\item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
+
 \item{...}{Additional arguments passed to the underlying model-fitting functions.}
 }
 \value{
@@ -66,26 +69,47 @@ quantifies the probability that the intrinsic population growth rate at equilibr
 is negative, given parameter uncertainty in a localized regression model.
 }
 \details{
-This function computes historical contingency (\eqn{\psi}) as the proportion of
-simulated intrinsic growth rates (\eqn{r}) that are negative at the equilibrium
-total community density (\eqn{x^*}). The procedure is as follows:
+This function quantifies historical contingency (\eqn{\psi})—the degree to which
+current community states depend on past conditions—based on the equilibrium total
+community density (\eqn{x^*}). Specifically, \eqn{\psi} represents the probability
+that the intrinsic population growth rate at equilibrium is negative, accounting
+for parameter uncertainty in a localized regression model.
 
+The procedure involves the following steps:
 \enumerate{
-\item The optimal distance-weighting parameter (\eqn{\theta_0}) is estimated
-using leave-one-out cross-validation (\code{\link{loocv}}).
-\item A localized regression model is fit using exponential distance-based
-weights:
-\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
-where \eqn{d_i} is the distance from the focal point and \eqn{\bar{d}} is
-the mean distance among observations.
-\item Parameter uncertainty is propagated by simulating coefficients from a
-multivariate normal distribution based on the model’s estimated covariance matrix.
-\item For each simulated parameter set, the log-scale intrinsic rate of increase
-(\eqn{r}) is computed as:
-\deqn{r = \beta_0 + \beta_2 x^*}
-\item The value of \eqn{\psi} is estimated as the proportion of simulations
-where \eqn{r < 0}.
+\item The optimal distance-weighting parameter (\eqn{\theta_0}) is identified
+via leave-one-out cross-validation (\code{\link{loocv}}), minimizing
+prediction error across candidate \eqn{\theta} values.
+\item A localized regression model is then fitted using distance-based weights
+derived from one of two kernel functions:
+\describe{
+\item{Exponential:}{\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}}
+\item{Gaussian:}{\deqn{w_i = \exp(-(d_i / \bar{d})^2 / (2\theta_0^2))}}
 }
+where \eqn{d_i} is the Euclidean distance between the focal (test) point and
+observation \eqn{i}, and \eqn{\bar{d}} is the mean pairwise distance.
+Weights are normalized to sum to one to maintain scale consistency.
+\item Parameter uncertainty is propagated by simulating regression coefficients
+from a multivariate normal distribution using the model’s estimated mean
+vector and covariance matrix.
+\item For each simulated parameter set, the intrinsic growth rate (\eqn{r})
+at the equilibrium density (\eqn{x^*}) is computed as:
+\deqn{r = \beta_0 + \beta_2 x^*}
+\item The historical contingency metric (\eqn{\psi}) is then estimated as the
+proportion of simulations where \eqn{r < 0}, reflecting the probability that
+equilibrium conditions yield a declining population under parameter uncertainty.
+}
+
+The LOOCV step can optionally use a random subset of the data (\code{size}) for
+computational efficiency. The choice of \code{type} ("exp" or "gaussian") determines
+how spatial proximity affects weighting. Supported model types include
+\code{"lm"}, \code{"glm"} (from \pkg{stats}),
+\code{"lmer"}, \code{"glmer"} (from \pkg{lme4}), and
+\code{"glmmTMB"} (from \pkg{glmmTMB}).
+
+This method provides a flexible framework to evaluate the strength of historical
+contingency in community dynamics, integrating spatially localized regression,
+cross-validation–based parameter optimization, and uncertainty propagation.
 }
 \examples{
 \dontrun{

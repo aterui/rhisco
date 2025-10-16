@@ -11,6 +11,7 @@ xeq(
   maxit = 50,
   tol = 1e-04,
   type = "gaussian",
+  method = "max",
   ...
 )
 }
@@ -26,6 +27,8 @@ xeq(
 \item{tol}{Numeric. Convergence threshold for the iterative update of the equilibrium estimate.}
 
 \item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
+
+\item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting functions.}
 }
@@ -44,15 +47,26 @@ updating the local regression until convergence is reached.
 }
 \details{
 This function estimates the equilibrium density (\eqn{x^*}) of the total community
-by iteratively fitting localized regression models. The equilibrium point is defined
-as the value of the predictor (\eqn{x}) for which the predicted response equals zero.
+by iteratively fitting localized regression models that apply distance-based weighting
+to observations. The equilibrium point is defined as the predictor value (\eqn{x})
+at which the predicted response equals zero, representing a steady-state condition
+in the modeled system.
 
-For each iteration, the model is refitted with weights assigned according to
-the exponential distance-decay function:
-\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
+For each iteration, the model is refitted with weights determined by a distance-decay
+function, reflecting the influence of nearby data points on local model estimation.
+Two types of weighting kernels are supported:
+\describe{
+\item{Exponential:}{\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}}
+\item{Gaussian:}{\deqn{w_i = \exp(-(d_i / \bar{d})^2 / (2\theta_0^2))}}
+}
 where \eqn{d_i} is the absolute distance between the focal point and observation \eqn{i},
-and \eqn{\bar{d}} is the mean distance. The optimal weighting parameter \eqn{\theta_0}
-is selected using leave-one-out cross-validation via \code{\link{loocv}}.
+and \eqn{\bar{d}} is the mean pairwise distance. Weights are normalized so that their
+total equals the number of training samples, ensuring comparability across fits.
+
+The optimal weighting parameter \eqn{\theta_0} is determined via
+leave-one-out cross-validation (LOOCV) using \code{\link{loocv}}. This procedure identifies
+the value of \eqn{\theta_0} that minimizes the root mean squared prediction error (RMSE),
+balancing model smoothness and locality.
 
 Iterations continue until the change in the equilibrium estimate between successive
 steps falls below \code{tol}, or until \code{maxit} iterations are reached.

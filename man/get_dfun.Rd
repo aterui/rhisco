@@ -4,11 +4,14 @@
 \alias{get_dfun}
 \title{Generate a distance-based weighting function}
 \usage{
-get_dfun(type)
+get_dfun(type, method = "max")
 }
 \arguments{
 \item{type}{Character string specifying the kernel type. Options are
 \code{"exp"} (exponential) or \code{"gaussian"}.}
+
+\item{method}{Character string specifying the scaling method. Options are
+\code{"mean"} or \code{"max"}.}
 }
 \value{
 A function of the form \code{f(x, theta)} that computes weights
