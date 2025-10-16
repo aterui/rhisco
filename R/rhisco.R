@@ -13,16 +13,23 @@
 #' @param size Integer scalar. The number of subset data points for leave-one-out cross validation.
 #' @param seed Integer scalar specifying a random seed.
 #' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
+#' @param method Character string specifying the scaling method. Options are `"mean"` or `"max"`.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
 #' @details
-#' The function fits a localized regression model at each observation using all other
-#' data points as training data. Weights are assigned based on pairwise distances among
-#' predictor variables using an exponential decay function:
-#' \deqn{w_i = \exp(-\theta d_i / \bar{d})}
-#' where \eqn{d_i} is the Euclidean distance between the focal and training points, and \eqn{\bar{d}}
-#' is the mean distance from the focal point to all others. The mean squared prediction
-#' error is computed for each left-out observation, and the overall RMSE is returned.
+#' This function evaluates localized regression models using leave-one-out cross-validation (LOOCV)
+#' with distance-based weighting. For each observation selected in the subset, the model is trained
+#' on all remaining data points, and the held-out observation is used for prediction. The squared
+#' prediction errors across all test points are averaged to compute the overall root mean squared error (RMSE).
+#'
+#' Distance-based weights are computed using one of two kernel functions:
+#' \describe{
+#'   \item{Exponential:}{\deqn{w_i = \exp(-\theta d_i / \bar{d})}}
+#'   \item{Gaussian:}{\deqn{w_i = \exp(- (d_i / \bar{d})^2 / (2\theta^2))}}
+#' }
+#' where \eqn{d_i} is the Euclidean distance between the focal (test) point and each training point,
+#' and \eqn{\bar{d}} is the mean distance from the focal point to all others. Each weight is normalized
+#' such that the total weight equals the number of training samples, maintaining comparability across fits.
 #'
 #' @return
 #' A numeric value giving the root mean squared error (RMSE) from leave-one-out cross-validation.
@@ -48,13 +55,15 @@ loocv <- function(formula,
                   size = nrow(data),
                   seed = NULL,
                   type = "gaussian",
+                  method = "max",
                   ...) {
 
   ## define resample
   resample <- function(x, ...) x[sample.int(length(x), ...)]
 
   ## define dfun
-  dfun <- get_dfun(type)
+  dfun <- get_dfun(type = type,
+                   method = method)
 
   ## get matrix X
   y <- all.vars(formula)[1]
@@ -155,19 +164,31 @@ loocv <- function(formula,
 #' @param maxit Integer. Maximum number of iterations used to approximate the equilibrium density.
 #' @param tol Numeric. Convergence threshold for the iterative update of the equilibrium estimate.
 #' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
+#' @param method Character string specifying the scaling method. Options are `"mean"` or `"max"`.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
 #' @details
 #' This function estimates the equilibrium density (\eqn{x^*}) of the total community
-#' by iteratively fitting localized regression models. The equilibrium point is defined
-#' as the value of the predictor (\eqn{x}) for which the predicted response equals zero.
+#' by iteratively fitting localized regression models that apply distance-based weighting
+#' to observations. The equilibrium point is defined as the predictor value (\eqn{x})
+#' at which the predicted response equals zero, representing a steady-state condition
+#' in the modeled system.
 #'
-#' For each iteration, the model is refitted with weights assigned according to
-#' the exponential distance-decay function:
-#' \deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
+#' For each iteration, the model is refitted with weights determined by a distance-decay
+#' function, reflecting the influence of nearby data points on local model estimation.
+#' Two types of weighting kernels are supported:
+#' \describe{
+#'   \item{Exponential:}{\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}}
+#'   \item{Gaussian:}{\deqn{w_i = \exp(-(d_i / \bar{d})^2 / (2\theta_0^2))}}
+#' }
 #' where \eqn{d_i} is the absolute distance between the focal point and observation \eqn{i},
-#' and \eqn{\bar{d}} is the mean distance. The optimal weighting parameter \eqn{\theta_0}
-#' is selected using leave-one-out cross-validation via \code{\link{loocv}}.
+#' and \eqn{\bar{d}} is the mean pairwise distance. Weights are normalized so that their
+#' total equals the number of training samples, ensuring comparability across fits.
+#'
+#' The optimal weighting parameter \eqn{\theta_0} is determined via
+#' leave-one-out cross-validation (LOOCV) using \code{\link{loocv}}. This procedure identifies
+#' the value of \eqn{\theta_0} that minimizes the root mean squared prediction error (RMSE),
+#' balancing model smoothness and locality.
 #'
 #' Iterations continue until the change in the equilibrium estimate between successive
 #' steps falls below \code{tol}, or until \code{maxit} iterations are reached.
@@ -201,6 +222,7 @@ xeq <- function(formula,
                 maxit = 50,
                 tol = 1E-4,
                 type = "gaussian",
+                method = "max",
                 ...) {
 
   ## initialize x_hat
@@ -229,13 +251,15 @@ xeq <- function(formula,
                            theta = x,
                            model = "lm",
                            type = type,
+                           method = method,
                            ...)
                    })
 
   theta0 <- theta[which.min(v_rmse)]
 
   ## define dfun
-  dfun <- get_dfun(type)
+  dfun <- get_dfun(type = type,
+                   method = method)
 
   for (i in seq_len(maxit - 1)) {
     d <- abs(data[, x_cnm, drop = TRUE] - x_hat[i])
@@ -285,29 +309,51 @@ xeq <- function(formula,
 #' @param size Integer. Sub-sample size for leave-one-out cross validation.
 #' @param seed Integer. Random seed for leave-one-out cross validation.
 #' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
+#' @param method Character string specifying the scaling method. Options are `"mean"` or `"max"`.
 #' @param ... Additional arguments passed to the underlying model-fitting functions.
 #'
 #' @details
-#' This function computes historical contingency (\eqn{\psi}) as the proportion of
-#' simulated intrinsic growth rates (\eqn{r}) that are negative at the equilibrium
-#' total community density (\eqn{x^*}). The procedure is as follows:
+#' This function quantifies historical contingency (\eqn{\psi})—the degree to which
+#' current community states depend on past conditions—based on the equilibrium total
+#' community density (\eqn{x^*}). Specifically, \eqn{\psi} represents the probability
+#' that the intrinsic population growth rate at equilibrium is negative, accounting
+#' for parameter uncertainty in a localized regression model.
 #'
+#' The procedure involves the following steps:
 #' \enumerate{
-#'   \item The optimal distance-weighting parameter (\eqn{\theta_0}) is estimated
-#'         using leave-one-out cross-validation (\code{\link{loocv}}).
-#'   \item A localized regression model is fit using exponential distance-based
-#'         weights:
-#'         \deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}
-#'         where \eqn{d_i} is the distance from the focal point and \eqn{\bar{d}} is
-#'         the mean distance among observations.
-#'   \item Parameter uncertainty is propagated by simulating coefficients from a
-#'         multivariate normal distribution based on the model’s estimated covariance matrix.
-#'   \item For each simulated parameter set, the log-scale intrinsic rate of increase
-#'         (\eqn{r}) is computed as:
+#'   \item The optimal distance-weighting parameter (\eqn{\theta_0}) is identified
+#'         via leave-one-out cross-validation (\code{\link{loocv}}), minimizing
+#'         prediction error across candidate \eqn{\theta} values.
+#'   \item A localized regression model is then fitted using distance-based weights
+#'         derived from one of two kernel functions:
+#'         \describe{
+#'           \item{Exponential:}{\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}}
+#'           \item{Gaussian:}{\deqn{w_i = \exp(-(d_i / \bar{d})^2 / (2\theta_0^2))}}
+#'         }
+#'         where \eqn{d_i} is the Euclidean distance between the focal (test) point and
+#'         observation \eqn{i}, and \eqn{\bar{d}} is the mean pairwise distance.
+#'         Weights are normalized to sum to one to maintain scale consistency.
+#'   \item Parameter uncertainty is propagated by simulating regression coefficients
+#'         from a multivariate normal distribution using the model’s estimated mean
+#'         vector and covariance matrix.
+#'   \item For each simulated parameter set, the intrinsic growth rate (\eqn{r})
+#'         at the equilibrium density (\eqn{x^*}) is computed as:
 #'         \deqn{r = \beta_0 + \beta_2 x^*}
-#'   \item The value of \eqn{\psi} is estimated as the proportion of simulations
-#'         where \eqn{r < 0}.
+#'   \item The historical contingency metric (\eqn{\psi}) is then estimated as the
+#'         proportion of simulations where \eqn{r < 0}, reflecting the probability that
+#'         equilibrium conditions yield a declining population under parameter uncertainty.
 #' }
+#'
+#' The LOOCV step can optionally use a random subset of the data (\code{size}) for
+#' computational efficiency. The choice of \code{type} ("exp" or "gaussian") determines
+#' how spatial proximity affects weighting. Supported model types include
+#' \code{"lm"}, \code{"glm"} (from \pkg{stats}),
+#' \code{"lmer"}, \code{"glmer"} (from \pkg{lme4}), and
+#' \code{"glmmTMB"} (from \pkg{glmmTMB}).
+#'
+#' This method provides a flexible framework to evaluate the strength of historical
+#' contingency in community dynamics, integrating spatially localized regression,
+#' cross-validation–based parameter optimization, and uncertainty propagation.
 #'
 #' @return
 #' A numeric value representing the estimated historical contingency (\eqn{\psi}),
@@ -356,6 +402,7 @@ get_psi <- function(formula,
                     size = min(100, nrow(data)),
                     seed = NULL,
                     type = "gaussian",
+                    method = "max",
                     ...) {
 
   # reformat data -----------------------------------------------------------
@@ -394,6 +441,7 @@ get_psi <- function(formula,
                            size = size,
                            seed = seed,
                            type = type,
+                           method = method,
                            ...)
                    })
 
@@ -401,7 +449,8 @@ get_psi <- function(formula,
   theta0 <- theta[which.min(v_rmse)]
 
   ## define dfun
-  dfun <- get_dfun(type)
+  dfun <- get_dfun(type = type,
+                   method = method)
 
   ## get scaled weight
   w0 <- with(data, dfun(d, theta = theta0))
