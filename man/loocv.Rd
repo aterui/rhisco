@@ -9,7 +9,9 @@ loocv(
   data,
   theta,
   model = "lm",
-  size = nrow(data),
+  group = "species",
+  tc = c("t", "time", "timestep", "ts"),
+  size = NULL,
   seed = NULL,
   type = "gaussian",
   method = "max",
@@ -25,6 +27,17 @@ loocv(
 
 \item{model}{Character string specifying the model type to fit. Must be one of
 \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.}
+
+\item{group}{Character string specifying the grouping variable in \code{data}.
+Each group is assumed to represent a species unit that is repeatedly
+observed across time. The function requires that every group contains exactly one
+observation per timestep (see \code{tc}). Defaults to \code{"species"}.}
+
+\item{tc}{Character vector of possible column names representing the time index.
+The function searches for the first matching name in \code{data}. This column must define
+the temporal ordering of observations and must be consistent across all groups,
+such that every group has one observation in each timestep. Defaults to
+\code{c("t", "time", "timestep", "ts")}.}
 
 \item{size}{Integer scalar. The number of subset data points for leave-one-out cross validation.}
 
@@ -53,11 +66,11 @@ prediction errors across all test points are averaged to compute the overall roo
 
 Distance-based weights are computed using one of two kernel functions:
 \describe{
-\item{Exponential:}{\deqn{w_i = \exp(-\theta d_i / \bar{d})}}
-\item{Gaussian:}{\deqn{w_i = \exp(- (d_i / \bar{d})^2 / (2\theta^2))}}
+\item{Exponential:}{\deqn{w_i = \exp(-\theta d_i)}}
+\item{Gaussian:}{\deqn{w_i = \exp(-\theta^2 (d_i)^2 / 2)}}
 }
 where \eqn{d_i} is the Euclidean distance between the focal (test) point and each training point,
-and \eqn{\bar{d}} is the mean distance from the focal point to all others. Each weight is normalized
+scaled either by the mean or maximum distance from the focal point to all others (see argument \code{method}). Each weight is normalized
 such that the total weight equals the number of training samples, maintaining comparability across fits.
 }
 \examples{

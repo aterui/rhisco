@@ -7,6 +7,8 @@
 xeq(
   formula,
   data,
+  group = "species",
+  tc = c("t", "time", "timestep", "ts"),
   theta = seq(0.5, 10, by = 0.5),
   maxit = 50,
   tol = 1e-04,
@@ -20,7 +22,19 @@ xeq(
 
 \item{data}{A data frame containing the variables referenced in \code{formula}.}
 
-\item{theta}{Numeric vector. Candidate values of the distance-weighting parameter, evaluated using leave-one-out cross-validation to identify the optimal value.}
+\item{group}{Character string specifying the grouping variable in \code{data}.
+Each group is assumed to represent a species unit that is repeatedly
+observed across time. The function requires that every group contains exactly one
+observation per timestep (see \code{tc}). Defaults to \code{"species"}.}
+
+\item{tc}{Character vector of possible column names representing the time index.
+The function searches for the first matching name in \code{data}. This column must define
+the temporal ordering of observations and must be consistent across all groups,
+such that every group has one observation in each timestep. Defaults to
+\code{c("t", "time", "timestep", "ts")}.}
+
+\item{theta}{Numeric vector. Candidate values of the distance-weighting parameter,
+evaluated using leave-one-out cross-validation to identify the optimal value.}
 
 \item{maxit}{Integer. Maximum number of iterations used to approximate the equilibrium density.}
 
@@ -30,14 +44,16 @@ xeq(
 
 \item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
 
-\item{...}{Additional arguments passed to the underlying model-fitting functions.}
+\item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
 \value{
 A numeric value representing the estimated equilibrium density (\eqn{x^*}) of the total community.
-The returned object also includes the following attributes:
+The returned object also includes:
 \itemize{
-\item \code{"gap"} – the final difference between successive estimates (convergence criterion)
-\item \code{"iteration"} – the total number of iterations performed
+\item \code{"gap"} – final difference between successive estimates (convergence criterion)
+\item \code{"iteration"} – number of iterations performed
+\item \code{"theta"} – the selected optimal weighting parameter
+\item \code{"rmse"} – the LOOCV error profile used for parameter selection
 }
 }
 \description{
@@ -54,26 +70,14 @@ in the modeled system.
 
 For each iteration, the model is refitted with weights determined by a distance-decay
 function, reflecting the influence of nearby data points on local model estimation.
-Two types of weighting kernels are supported:
-\describe{
-\item{Exponential:}{\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}}
-\item{Gaussian:}{\deqn{w_i = \exp(-(d_i / \bar{d})^2 / (2\theta_0^2))}}
-}
-where \eqn{d_i} is the absolute distance between the focal point and observation \eqn{i},
-and \eqn{\bar{d}} is the mean pairwise distance. Weights are normalized so that their
-total equals the number of training samples, ensuring comparability across fits.
-
-The optimal weighting parameter \eqn{\theta_0} is determined via
-leave-one-out cross-validation (LOOCV) using \code{\link{loocv}}. This procedure identifies
-the value of \eqn{\theta_0} that minimizes the root mean squared prediction error (RMSE),
-balancing model smoothness and locality.
+The optimal weighting parameter \eqn{\theta_0} is selected via leave-one-out cross-validation
+using \code{\link{loocv}}.
 
 Iterations continue until the change in the equilibrium estimate between successive
 steps falls below \code{tol}, or until \code{maxit} iterations are reached.
 }
 \examples{
 \dontrun{
-## Example using a simple regression model
 df <- data.frame(
   x = seq(1, 10, length.out = 20),
   y = 5 - 0.5 * seq(1, 10, length.out = 20) + rnorm(20, 0, 0.2)
@@ -83,7 +87,7 @@ xeq(y ~ x, data = df, theta = seq(0, 5, by = 0.5))
 
 }
 \seealso{
-\code{\link{loocv}} for model calibration using leave-one-out cross-validation.
+\code{\link{loocv}} for model calibration.
 }
 \author{
 Akira Terui (\email{hanabi0111@gmail.com})

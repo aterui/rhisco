@@ -8,6 +8,8 @@ get_psi(
   formula,
   data,
   x_star,
+  group = "species",
+  tc = c("t", "time", "timestep", "ts"),
   theta = seq(0.5, 10, by = 0.5),
   n_lag = attr(stats::terms(formula), "term.labels")[1],
   nt_lag = attr(stats::terms(formula), "term.labels")[2],
@@ -29,12 +31,23 @@ get_psi(
 \item{x_star}{Numeric value representing the equilibrium total community density,
 typically obtained from \code{\link{xeq}}.}
 
+\item{group}{Character string specifying the grouping variable in \code{data}.
+Each group is assumed to represent a species unit that is repeatedly
+observed across time. The function requires that every group contains exactly one
+observation per timestep (see \code{tc}). Defaults to \code{"species"}.}
+
+\item{tc}{Character vector of possible column names representing the time index.
+The function searches for the first matching name in \code{data}. This column must define
+the temporal ordering of observations and must be consistent across all groups,
+such that every group has one observation in each timestep. Defaults to
+\code{c("t", "time", "timestep", "ts")}.}
+
 \item{theta}{Numeric vector. Candidate values of the distance-weighting parameter,
-evaluated via leave-one-out cross-validation to select the optimal value.}
+evaluated via leave-one-out cross-validation to identify the optimal value.}
 
-\item{n_lag}{Character string specifying the column name for lagged population density.}
+\item{n_lag}{Character string specifying the column name for the lagged population density.}
 
-\item{nt_lag}{Character string specifying the column name for lagged total community density.}
+\item{nt_lag}{Character string specifying the column name for the lagged total community density.}
 
 \item{n_sim}{Integer. Number of random samples drawn from a multivariate normal
 distribution to propagate parameter uncertainty.}
@@ -44,84 +57,49 @@ distribution to propagate parameter uncertainty.}
 
 \item{rescale}{Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.}
 
-\item{size}{Integer. Sub-sample size for leave-one-out cross validation.}
+\item{size}{Integer scalar. The number of subset data points for leave-one-out cross validation.}
 
-\item{seed}{Integer. Random seed for leave-one-out cross validation.}
+\item{seed}{Integer scalar specifying a random seed.}
 
 \item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
 \item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
 
-\item{...}{Additional arguments passed to the underlying model-fitting functions.}
+\item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
 \value{
-A numeric value representing the estimated historical contingency (\eqn{\psi}),
-with the following attributes:
+A numeric value representing historical contingency (\eqn{\psi}). The returned object
+also includes:
 \itemize{
-\item \code{"theta"} – the optimal distance-weighting parameter (\eqn{\theta_0})
-\item \code{"message"} – model convergence information (if available)
+\item \code{"theta"} – selected optimal distance-weighting parameter
+\item \code{"message"} – model or convergence diagnostics (if present)
 }
 }
 \description{
 Estimates the degree of historical contingency (\eqn{\psi}) in community dynamics
-based on the equilibrium total community density (\eqn{x^*}). The statistic
-quantifies the probability that the intrinsic population growth rate at equilibrium
-is negative, given parameter uncertainty in a localized regression model.
+based on the equilibrium total community density (\eqn{x^*}). The statistic quantifies
+the probability that the intrinsic population growth rate at equilibrium is negative,
+given parameter uncertainty in a localized regression model.
 }
 \details{
-This function quantifies historical contingency (\eqn{\psi})—the degree to which
-current community states depend on past conditions—based on the equilibrium total
-community density (\eqn{x^*}). Specifically, \eqn{\psi} represents the probability
-that the intrinsic population growth rate at equilibrium is negative, accounting
-for parameter uncertainty in a localized regression model.
-
-The procedure involves the following steps:
-\enumerate{
-\item The optimal distance-weighting parameter (\eqn{\theta_0}) is identified
-via leave-one-out cross-validation (\code{\link{loocv}}), minimizing
-prediction error across candidate \eqn{\theta} values.
-\item A localized regression model is then fitted using distance-based weights
-derived from one of two kernel functions:
-\describe{
-\item{Exponential:}{\deqn{w_i = \exp(-\theta_0 d_i / \bar{d})}}
-\item{Gaussian:}{\deqn{w_i = \exp(-(d_i / \bar{d})^2 / (2\theta_0^2))}}
-}
-where \eqn{d_i} is the Euclidean distance between the focal (test) point and
-observation \eqn{i}, and \eqn{\bar{d}} is the mean pairwise distance.
-Weights are normalized to sum to one to maintain scale consistency.
-\item Parameter uncertainty is propagated by simulating regression coefficients
-from a multivariate normal distribution using the model’s estimated mean
-vector and covariance matrix.
-\item For each simulated parameter set, the intrinsic growth rate (\eqn{r})
-at the equilibrium density (\eqn{x^*}) is computed as:
-\deqn{r = \beta_0 + \beta_2 x^*}
-\item The historical contingency metric (\eqn{\psi}) is then estimated as the
-proportion of simulations where \eqn{r < 0}, reflecting the probability that
-equilibrium conditions yield a declining population under parameter uncertainty.
-}
-
-The LOOCV step can optionally use a random subset of the data (\code{size}) for
-computational efficiency. The choice of \code{type} ("exp" or "gaussian") determines
-how spatial proximity affects weighting. Supported model types include
-\code{"lm"}, \code{"glm"} (from \pkg{stats}),
-\code{"lmer"}, \code{"glmer"} (from \pkg{lme4}), and
-\code{"glmmTMB"} (from \pkg{glmmTMB}).
-
-This method provides a flexible framework to evaluate the strength of historical
-contingency in community dynamics, integrating spatially localized regression,
-cross-validation–based parameter optimization, and uncertainty propagation.
+This function quantifies historical contingency (\eqn{\psi}) by evaluating uncertainty
+in the intrinsic growth rate at the estimated equilibrium density (\eqn{x^*}). The
+optimal distance-weighting parameter (\eqn{\theta_0}) is selected via leave-one-out
+cross-validation using \code{\link{loocv}}. Parameter uncertainty is then propagated
+by drawing regression coefficients from the multivariate normal distribution implied
+by the fitted model. The proportion of draws yielding negative intrinsic growth rates
+defines \eqn{\psi}.
 }
 \examples{
 \dontrun{
-## Example with synthetic data
 df <- data.frame(
   log_r = runif(50, -1, 1),
   n_lag = rnorm(50, 10, 2),
   nt_lag = rnorm(50, 50, 10),
-  species = rep(1:10, times = 5)
+  species = rep(1:10, each = 5)
 )
 
-x_star <- 10  # example equilibrium density
+x_star <- 10
 get_psi(
   formula = log_r ~ n_lag + nt_lag,
   data = df,
@@ -133,8 +111,8 @@ get_psi(
 
 }
 \seealso{
-\code{\link{xeq}} for estimating equilibrium densities, and
-\code{\link{loocv}} for selecting the optimal weighting parameter.
+\code{\link{xeq}} for equilibrium estimation; \code{\link{loocv}} for
+cross-validation–based parameter selection.
 }
 \author{
 Akira Terui (\email{hanabi0111@gmail.com})
