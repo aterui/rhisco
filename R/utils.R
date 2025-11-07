@@ -415,7 +415,7 @@ get_dfun <- function(type,
          },
          gaussian = function(x, theta) {
            d <- x / f(x)
-           w <- exp(-d^2 / (2 * theta^2))
+           w <- exp(- theta^2 * (d^2 / 2))
            return(w)
          },
          stop("Unsupported type"))
