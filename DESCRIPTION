@@ -1,7 +1,7 @@
 Package: rhisco
 Type: Package
 Title: Historical Contingency
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person(
       "Akira", "Terui",
