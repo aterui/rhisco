@@ -28,7 +28,7 @@
 #'   \item{Gaussian:}{\deqn{w_i = \exp(- (d_i / \bar{d})^2 / (2\theta^2))}}
 #' }
 #' where \eqn{d_i} is the Euclidean distance between the focal (test) point and each training point,
-#' and \eqn{\bar{d}} is the mean distance from the focal point to all others. Each weight is normalized
+#' and \eqn{\bar{d}} is the mean or maximum distance from the focal point to all others. Each weight is normalized
 #' such that the total weight equals the number of training samples, maintaining comparability across fits.
 #'
 #' @return
@@ -52,7 +52,9 @@ loocv <- function(formula,
                   data,
                   theta,
                   model = "lm",
-                  size = nrow(data),
+                  group = "species",
+                  tc = c("t", "time", "timestep", "ts"),
+                  size = NULL,
                   seed = NULL,
                   type = "gaussian",
                   method = "max",
@@ -61,30 +63,52 @@ loocv <- function(formula,
   ## define resample
   resample <- function(x, ...) x[sample.int(length(x), ...)]
 
+  ## check if `group` column exists in the data, then sort
+  if (!(group %in% colnames(data)))
+    stop(paste(group, "is not found in the dataframe."))
+
+  data <- data[order(data[[group]]), ] |>
+    transform(index = seq_len(nrow(data)))
+
+  ## check if "t" column exists
+  tcol <- intersect(tc, colnames(data))[1]
+  if (is.na(tcol)) stop("No time column found.")
+
+  n_unq_t <- unique(table(data[[tcol]]))
+  n_gr <- unique(data[[group]]) |>
+    length()
+
+  if (n_unq_t != n_gr)
+    stop(paste("All constituent elements in",
+               sQuote(group),
+               "must contain one observation in each timestep"))
+
   ## define dfun
   dfun <- get_dfun(type = type,
                    method = method)
 
-  ## get matrix X
+  ## get matrix X and distance
   y <- all.vars(formula)[1]
   v_cnm_x <- attr(stats::terms(formula), "term.labels")
   v_cnm_x <- v_cnm_x[!grepl("\\|", v_cnm_x)]
 
-  m_x <- data[, v_cnm_x] |>
-    data.matrix()
+  list_dist <- split(data, data[[group]]) |>
+    lapply(FUN = function(x) {
 
-  ## distance matrix for weighting
-  m_dist <- stats::dist(m_x,
-                        diag = TRUE,
-                        upper = TRUE) |>
-    data.matrix()
+      df_x <- x[, v_cnm_x] |>
+        stats::dist(diag = TRUE,
+                    upper = TRUE) |>
+        data.matrix() |>
+        as.data.frame()
 
-  ## select random subset
-  if (!is.null(seed))
-    set.seed(seed)
+      colnames(df_x) <- x[[tcol]]
+      df_x$t <- x[[tcol]]
+      df_x$g <- x[[group]]
+      return(df_x)
+    })
 
-  v <- seq_len(nrow(data)) |>
-    resample(size = size, replace = FALSE)
+  df_dist <- do.call(rbind,
+                     list_dist)
 
   ## define model fitting function once
   fit_fun <- switch(model,
@@ -121,28 +145,58 @@ loocv <- function(formula,
                     stop("Unsupported model type")
   )
 
-  rmse <- sapply(v,
+  ## select random subset
+  if (!is.null(seed))
+    set.seed(seed)
+
+  if (is.null(size))
+    size <- length(unique(data[[tcol]]))
+
+  v_t <- unique(data[[tcol]]) |>
+    resample(size = size,
+             replace = FALSE) |>
+    sort()
+
+  data$w <- 1
+
+  rmse <- sapply(seq_len(length(v_t)),
                  function(i) {
 
+                   ## get vector indices for "leave-out"
+                   v_idx <- which(data[[tcol]] == v_t[i])
+
                    ## training data
-                   df_train <- data[-i, ]
-                   data[i, "w"] <- nrow(df_train)
+                   df_train <- data[-v_idx, ]
 
                    ## calculate weights
-                   w0 <- dfun(m_dist[i, - i], theta = theta)
-                   df_train$w <- (w0 / sum(w0)) * nrow(df_train)
+                   ## - remove "leave-out" data points
+                   cnm <- c(as.character(v_t[i]), "t", "g")
+                   df_dist_i <- df_dist[-v_idx, cnm] |>
+                     setNames(c("d", "t", "g"))
 
+                   ## - calculate raw weights by group
+                   w0 <- with(df_dist_i,
+                              ave(d, g, FUN = function(x) dfun(x = x,
+                                                               theta = theta)))
+
+                   ## - normalize raw weights by group
+                   df_train$w0 <- w0
+                   df_train$w <- with(df_train,
+                                      ave(w0, df_train[[group]],
+                                          FUN = function(x) x / sum(x)))
+
+                   ## fit model
                    lw <- fit_fun(formula,
                                  data = df_train,
                                  w = w,
                                  ...)
 
                    y0 <- stats::predict(lw,
-                                        newdata = data[i, , drop = FALSE],
+                                        newdata = data[v_idx, , drop = FALSE],
                                         type = "response")
 
-                   y1 <- data[[y]][i]
-                   eps <- (y1 - y0)^2
+                   y1 <- data[[y]][v_idx]
+                   eps <- sum((y1 - y0)^2)
                    return(eps)
                  }) |>
     mean() |>
@@ -549,7 +603,7 @@ get_psi <- function(formula,
   # Convert everything to character
   if (is.list(note)) {
     note <- paste(unlist(note), collapse = " | ")
-  } else if (length(note) != 0){
+  } else if (length(note) != 0) {
     note <- as.character(note)  # assign back to note
   } else {
     note <- NA_character_
