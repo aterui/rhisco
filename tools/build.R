@@ -32,8 +32,21 @@ a <- inla_lmer(log_r ~ n_lag + nt_lag,
                control.compute = list(config = TRUE,
                                       cpo = TRUE))
 
-loocv(log_r ~ n_lag + nt_lag + (1|species),
-      data = df1,
-      theta = 0.1,
-      model = "glmmTMB")
+sapply(5:10*0.1, function(x) {
+  loocv(log_r ~ n_lag + nt_lag + (1|species),
+        data = df1,
+        theta = x,
+        model = "lmer",
+        method = "max")
+}) |>
+  plot()
 
+x_star <- xeq(log_r ~ nt_lag,
+              df1,
+              theta = c(0.5, 1, 2, 4, 8))
+
+get_psi(log_r ~ n_lag + nt_lag + (1|species),
+        data = df1,
+        x_star = x_star,
+        theta = c(0.5, 1, 2, 4, 8),
+        model = "lmer")

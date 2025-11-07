@@ -1,3 +1,85 @@
+
+library(tidyverse)
+library(rhisco)
+library(cdyns)
+
+A <- rbind(c(1, 1, 1.5, 0, 0),
+           c(1.5, 1, 0, 0, 0),
+           c(1.1, 1.5, 1, 0, 0),
+           c(0, 0, 0, 1, 0),
+           c(0, 0, 0, 0, 1))
+
+# A <- matrix(rexp(25, 2),
+#             5, 5)
+# diag(A) <- 1
+
+df_lag <- cdynsim(n_species = 5,
+                  n_timestep = 20,
+                  n_burnin = 0,
+                  int_type = "constant",
+                  alpha = A,
+                  model = "bh",
+                  inv_sign = FALSE) %>%
+  with(df_dyn) %>%
+  rename(y = density) %>%
+  rhisco::lag_block(y = "y",
+                    t = "timestep",
+                    index = "species") %>%
+  select(-immigrant) %>%
+  mutate(log_r = log(y) - log(y_lag),
+         log_rt = log(yt) - log(yt_lag)) %>%
+  drop_na(log_r)
+
+x_star <- rhisco::xeq(log_rt ~ yt_lag,
+                      data = df_lag)
+
+
+df_plot <- df_lag %>%
+  group_by(species) %>%
+  mutate(d = sqrt(y_lag^2 + (yt_lag - x_star)^2),
+         max_di = max(d)) %>%
+  ungroup() %>%
+  mutate(wi = exp(-(d / max_di)),
+         w = exp(-(d / max(d))))
+
+df_plot %>%
+  ggplot(aes(x = y_lag,
+             y = yt_lag,
+             color = wi)) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = x_star) +
+  facet_wrap(facets =~ species,
+             scales = "free") +
+  MetBrewer::scale_color_met_c("Hiroshige",
+                               direction = -1)
+
+df_plot %>%
+  ggplot(aes(x = y_lag,
+             y = log_r,
+             color = wi)) +
+  geom_point(size = 3) +
+  facet_wrap(facets =~ species) +
+  MetBrewer::scale_color_met_c("Hiroshige",
+                               direction = -1)
+
+(m0 <- lme4::lmer(log_r ~ y_lag + yt_lag + (1 | species),
+                  data = df_plot,
+                  weights = wi,
+                  REML = FALSE))
+
+(m0 <- lm(log_r ~ y_lag + yt_lag,
+          data = df_plot,
+          weights = wi))
+
+(m1 <- lme4::lmer(log_r ~ y_lag + yt_lag + (1 | species),
+                  data = df_plot,
+                  weights = w,
+                  REML = FALSE))
+
+(m1 <- lm(log_r ~ y_lag + yt_lag,
+          data = df_plot,
+          weights = w))
+
 # #' @param m Integer. Magnitude of a given link.
 # #'
 # #' @importFrom stats dpois qpois
