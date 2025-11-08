@@ -111,8 +111,11 @@ loocv <- function(formula,
 
   ## get matrix X and distance
   y <- all.vars(formula)[1]
-  v_cnm_x <- attr(stats::terms(formula), "term.labels")
-  v_cnm_x <- v_cnm_x[!grepl("\\|", v_cnm_x)]
+  v_cnm_x0 <- attr(stats::terms(formula), "term.labels")
+  v_cnm_x <- v_cnm_x0[!grepl("\\|", v_cnm_x0)]
+
+  if (model %in% c("lm", "glm") && any(grepl("\\|", v_cnm_x0)))
+    stop(paste(sQuote(model), "does not allow random effects"))
 
   list_dist <- split(data, data[[group]]) |>
     lapply(FUN = function(x) {
@@ -306,6 +309,9 @@ xeq <- function(formula,
   ## x label
   x_cnm <- attr(stats::terms(formula), "term.labels")
 
+  if (length(x_cnm) > 1)
+    stop(paste(sQuote(formula)[3], "can contain only one predictor"))
+
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
                    function(x) {
@@ -476,8 +482,15 @@ get_psi <- function(formula,
                    method = method)
 
   ## get scaled weight
-  w0 <- with(data, dfun(d, theta = theta0))
-  data$w <- w0 / sum(w0)
+  ## - get raw weights by group
+  w0 <- stats::ave(data[["d"]],
+                   data[[group]],
+                   FUN = function(x) dfun(x, theta = theta0))
+
+  ## - get normalized weights by group
+  data$w <- stats::ave(w0,
+                       data[[group]],
+                       FUN = function(x) x / sum(x))
 
   m <- switch(model,
               lm = stats::lm(formula,
