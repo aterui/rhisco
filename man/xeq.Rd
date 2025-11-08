@@ -7,7 +7,6 @@
 xeq(
   formula,
   data,
-  group = "species",
   tc = c("t", "time", "timestep", "ts"),
   theta = seq(0.5, 10, by = 0.5),
   maxit = 50,
@@ -21,11 +20,6 @@ xeq(
 \item{formula}{A model formula specifying the response and predictor variables.}
 
 \item{data}{A data frame containing the variables referenced in \code{formula}.}
-
-\item{group}{Character string specifying the grouping variable in \code{data}.
-Each group is assumed to represent a species unit that is repeatedly
-observed across time. The function requires that every group contains exactly one
-observation per timestep (see \code{tc}). Defaults to \code{"species"}.}
 
 \item{tc}{Character vector of possible column names representing the time index.
 The function searches for the first matching name in \code{data}. This column must define

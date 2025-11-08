@@ -16,7 +16,7 @@ get_psi(
   n_sim = 1000,
   model = "lm",
   rescale = TRUE,
-  size = min(100, nrow(data)),
+  size = NULL,
   seed = NULL,
   type = "gaussian",
   method = "max",
@@ -34,7 +34,7 @@ typically obtained from \code{\link{xeq}}.}
 \item{group}{Character string specifying the grouping variable in \code{data}.
 Each group is assumed to represent a species unit that is repeatedly
 observed across time. The function requires that every group contains exactly one
-observation per timestep (see \code{tc}). Defaults to \code{"species"}.}
+observation per timestep (see \code{tc}). Defaults to \code{NULL}.}
 
 \item{tc}{Character vector of possible column names representing the time index.
 The function searches for the first matching name in \code{data}. This column must define
@@ -57,7 +57,11 @@ distribution to propagate parameter uncertainty.}
 
 \item{rescale}{Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.}
 
-\item{size}{Integer scalar. The number of subset data points for leave-one-out cross validation.}
+\item{size}{Integer specifying the number of timesteps to include in the
+cross-validation subset. Instead of performing LOOCV across \emph{all} timesteps,
+the function randomly selects \code{size} distinct time points and leaves out one
+timestep at a time within this subset. This reduces computation while maintaining
+representative temporal coverage. If \code{NULL} (default), all timesteps are used.}
 
 \item{seed}{Integer scalar specifying a random seed.}
 

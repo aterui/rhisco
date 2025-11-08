@@ -42,7 +42,7 @@ sapply(5:10*0.1, function(x) {
   plot()
 
 x_star <- xeq(log_r ~ nt_lag,
-              df1,
+              df1 %>% filter(species == 1),
               theta = c(0.5, 1, 2, 4, 8))
 
 get_psi(log_r ~ n_lag + nt_lag + (1|species),
