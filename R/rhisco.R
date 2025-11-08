@@ -13,13 +13,17 @@
 #' @param group Character string specifying the grouping variable in `data`.
 #'   Each group is assumed to represent a species unit that is repeatedly
 #'   observed across time. The function requires that every group contains exactly one
-#'   observation per timestep (see `tc`). Defaults to `"species"`.
+#'   observation per timestep (see `tc`). Defaults to \code{NULL}.
 #' @param tc Character vector of possible column names representing the time index.
 #'   The function searches for the first matching name in `data`. This column must define
 #'   the temporal ordering of observations and must be consistent across all groups,
 #'   such that every group has one observation in each timestep. Defaults to
 #'   `c("t", "time", "timestep", "ts")`.
-#' @param size Integer scalar. The number of subset data points for leave-one-out cross validation.
+#' @param size Integer specifying the number of timesteps to include in the
+#'   cross-validation subset. Instead of performing LOOCV across *all* timesteps,
+#'   the function randomly selects `size` distinct time points and leaves out one
+#'   timestep at a time within this subset. This reduces computation while maintaining
+#'   representative temporal coverage. If `NULL` (default), all timesteps are used.
 #' @param seed Integer scalar specifying a random seed.
 #' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
 #' @param method Character string specifying the scaling method. Options are `"mean"` or `"max"`.
@@ -61,7 +65,7 @@ loocv <- function(formula,
                   data,
                   theta,
                   model = "lm",
-                  group = "species",
+                  group = NULL,
                   tc = c("t", "time", "timestep", "ts"),
                   size = NULL,
                   seed = NULL,
@@ -73,11 +77,20 @@ loocv <- function(formula,
   resample <- function(x, ...) x[sample.int(length(x), ...)]
 
   ## check if `group` column exists in the data, then sort
-  if (!(group %in% colnames(data)))
-    stop(paste(group, "is not found in the dataframe."))
+  if (is.null(group)) {
 
-  data <- data[order(data[[group]]), ] |>
-    transform(index = seq_len(nrow(data)))
+    group <- "species"
+    data$species <- 1
+
+  } else {
+
+    if (!(group %in% colnames(data)))
+      stop(paste(group, "is not found in the dataframe."))
+
+    data <- data[order(data[[group]]), ] |>
+      transform(index = seq_len(nrow(data)))
+
+  }
 
   ## check if "t" column exists
   tcol <- intersect(tc, colnames(data))[1]
@@ -88,7 +101,7 @@ loocv <- function(formula,
     length()
 
   if (n_unq_t != n_gr)
-    stop(paste("All constituent elements in",
+    stop(paste("All operational units in",
                sQuote(group),
                "must contain one observation in each timestep"))
 
@@ -267,7 +280,6 @@ loocv <- function(formula,
 
 xeq <- function(formula,
                 data,
-                group = "species",
                 tc = c("t", "time", "timestep", "ts"),
                 theta = seq(0.5, 10, by = 0.5),
                 maxit = 50,
@@ -301,7 +313,6 @@ xeq <- function(formula,
                            data = data,
                            theta = x,
                            model = "lm",
-                           group = group,
                            tc = tc,
                            type = type,
                            method = method,
@@ -409,7 +420,7 @@ get_psi <- function(formula,
                     n_sim = 1000,
                     model = "lm",
                     rescale = TRUE,
-                    size = min(100, nrow(data)),
+                    size = NULL,
                     seed = NULL,
                     type = "gaussian",
                     method = "max",
