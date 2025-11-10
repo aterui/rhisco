@@ -104,8 +104,8 @@ set_pg <- function(warmup,
   ## define resample
   resample <- function(x, ...) x[sample.int(length(x), ...)]
 
-  if (!is.list(pg.control))
-    stop("'pg.control' must be a list.")
+  if (!is.list(pg))
+    stop("'pg' must be a list.")
 
   par_pg <- modifyList(pg.control(), pg)
   m_pg <- matrix(0,
@@ -490,8 +490,42 @@ fn_model <- function(model) {
   return(dyn)
 }
 
-
-#' Simulate community dynamics with stock enhancement
+#' Simulate Community Dynamics
+#'
+#' Simulates multispecies community dynamics using either the Ricker or
+#' Beverton-Holt population model, with species interactions and
+#' environmental stochasticity. Species can be initialized and introduced
+#' according to a user-specified propagule schedule during warmup.
+#'
+#' The model runs for `warmup + burnin + ts` timesteps, and returns species
+#' densities in a tidy data format. Warmup and burn-in periods can be excluded
+#' from the output using `trim = TRUE`.
+#'
+#' @param ts Integer. Number of timesteps to retain after warmup and burn-in.
+#' @param warmup Integer. Number of warmup steps with propagule introduction (excluded from output if `trim = TRUE`).
+#' @param burnin Integer. Number of burn-in steps without propagule introduction (excluded from output if `trim = TRUE`).
+#' @param s Integer. Number of species in the community.
+#' @param r List or scalar passed to `par.control()`. Controls intrinsic growth rates.
+#' @param alpha List or scalar passed to `par.control()`. Controls competition coefficients.
+#' @param beta List or scalar passed to `par.control()`. Controls facilitation coefficients.
+#' @param model Character. Population model: `"ricker"` or `"bh"`.
+#' @param negative Logical. Whether interaction coefficients are set negative by default.
+#'   If `NULL`, defaults to `TRUE` for Ricker and `FALSE` for Beverton-Holt.
+#' @param sd_eps Numeric. Standard deviation of environmental stochasticity.
+#' @param stochastic Logical. If `TRUE`, applies environmental stochasticity to growth.
+#' @param pg Object passed to `pg.control()`. Defines the propagule introduction schedule.
+#' @param extinct Numeric. Density threshold below which species density is set to zero.
+#' @param trim Logical. If `TRUE` (default), returns only post warmup+burn-in timesteps.
+#'
+#' @return A tibble with columns:
+#'   * `ts` timestep
+#'   * `species` species ID
+#'   * `density` species density
+#'
+#' Returned object includes attributes:
+#'   * `"r"` intrinsic growth parameters
+#'   * `"coef"` species interaction matrix
+#'
 #' @export
 
 csim <- function(ts = 1000,
@@ -505,9 +539,9 @@ csim <- function(ts = 1000,
                  negative = NULL,
                  sd_eps = 0.1,
                  stochastic = FALSE,
-                 seed = 5,
-                 seed_interval = 10,
-                 extinct = 0) {
+                 pg = pg.control(),
+                 extinct = 0,
+                 trim = TRUE) {
 
   # model type --------------------------------------------------------------
 
@@ -517,16 +551,30 @@ csim <- function(ts = 1000,
 
   dyn <- fn_model(model = model)
 
-  # variables ---------------------------------------------------------------
-  ## basic objects ####
+  # parms -------------------------------------------------------------------
+
+  # number of total simulation steps and final trimming index
   n_sim <- warmup + burnin + ts
   n_cut <- warmup + burnin
+
+  ## parameter: intrinsic growth
+  v_r <- set_r(s = s,
+               r = r)
+
+  ## parameter: species interaction
+  m_coef <- set_coef(s = s,
+                     alpha = alpha,
+                     beta = beta,
+                     negative = negative)
+
+  # variables ---------------------------------------------------------------
+
   cnm <- c("ts",
            "species",
            "density")
 
   m_dyn <- matrix(NA,
-                  nrow = ts * s,
+                  nrow = n_sim * s,
                   ncol = length(cnm))
 
   colnames(m_dyn) <- cnm
@@ -535,19 +583,13 @@ csim <- function(ts = 1000,
                 to = nrow(m_dyn),
                 by = s)
 
-  v_n <- rep(seed, s)
+  # propagule introduction schedule (time x species)
+  m_pg <- set_pg(warmup = warmup,
+                 n_sim = n_sim,
+                 s = s,
+                 pg = pg)
 
-  ## parameter: species interaction ####
-  m_coef <- set_coef(s = s,
-                     alpha = alpha,
-                     beta = beta,
-                     negative = negative)
-
-  ## parameter: population dynamics ####
-  v_r <- set_r(s = s,
-               r = r)
-
-  ## parameter: environmental stochasticity ####
+  ## environmental stochasticity
   m_eps <- matrix(rnorm(n = n_sim * s,
                         mean = 0,
                         sd = sd_eps),
@@ -555,39 +597,23 @@ csim <- function(ts = 1000,
                   ncol = s,
                   byrow = TRUE) # time x species matrix
 
-  ## seed interval ####
-  if (warmup > 0) {
-
-    if (seed_interval > warmup)
-      stop("warmup must be equal to or larger than seed_interval")
-
-    seeding <- seq(from = seed_interval,
-                   to = max(c(1, warmup)),
-                   by = seed_interval)
-
-  }
-
   # dynamics ----------------------------------------------------------------
 
   ## initialize m_dyn[,]
   m_dyn[1:s, ] <- cbind(rep(1, s), # time step
                         seq_len(s), # species ID
-                        v_n # density
+                        m_pg[1, ] # initial density
   )
 
-  for (i in 2:n_sim) {
+  ## initialize density
+  v_n <- rep(0, times = s)
 
-    # seeding
-    if (warmup > 0) {
+  for (i in 1:(n_sim - 1)) {
 
-      if (i %in% seeding) {
+    ## add propagule
+    v_n <- v_n + m_pg[i, ]
 
-        v_n <- v_n + rpois(s, seed)
-
-      }
-
-    }
-
+    ## update density
     v_n <- dyn(r = v_r,
                n = v_n,
                m_coef = m_coef,
@@ -596,22 +622,25 @@ csim <- function(ts = 1000,
 
     v_n[v_n < extinct] <- 0
 
-    if (i > n_cut) {
+    row_id <- seq(from = st_row[i + 1],
+                  to = st_row[i + 1] + (s - 1),
+                  by = 1)
 
-      row_id <- seq(from = st_row[i - n_cut],
-                    to = st_row[i - n_cut] + (s - 1),
-                    by = 1)
+    m_dyn[row_id, ] <- cbind(rep(i + 1, s), # timestep
+                             seq_len(s), # species ID
+                             v_n # density
+    )
 
-      m_dyn[row_id, ] <- cbind(rep(i, s) - n_cut, # timestep
-                               seq_len(s), # species ID
-                               v_n # density
-      )
-    }
   }
 
   # return ------------------------------------------------------------------
 
+  if (trim) m_dyn <- m_dyn[(n_cut * s + 1):(n_sim * s), ]
+
   df_dyn <- dplyr::as_tibble(m_dyn)
+
+  attr(df_dyn, "r") <- v_r
+  attr(df_dyn, "coef") <- m_coef
 
   return(df_dyn)
 
