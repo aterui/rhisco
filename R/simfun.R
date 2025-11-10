@@ -165,7 +165,7 @@ set_pg <- function(warmup,
 #' Generate default parameter control settings
 #'
 #' Creates a list of control parameters for generating random or constant values
-#' used in other functions, such as `set_alpha`, `set_beta`, or `set_r`. This
+#' used in other functions, such as `set_coef` or `set_r`. This
 #' function provides default values and allows users to override them as needed.
 #'
 #' @param type Character. The type of parameter generation. Options are:

@@ -34,6 +34,6 @@ A list containing the control settings: \code{type}, \code{mu}, \code{sd}, \code
 }
 \description{
 Creates a list of control parameters for generating random or constant values
-used in other functions, such as \code{set_alpha}, \code{set_beta}, or \code{set_r}. This
+used in other functions, such as \code{set_coef} or \code{set_r}. This
 function provides default values and allows users to override them as needed.
 }
