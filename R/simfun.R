@@ -99,10 +99,10 @@ set_coef <- function(s,
   if (!is.list(beta))
     stop("'beta' must be a list.")
 
-  alpha <- modifyList(par.control(), alpha)
-  beta <- modifyList(par.control(), beta)
+  par_alpha <- modifyList(par.control(), alpha)
+  par_beta <- modifyList(par.control(), beta)
 
-  v_alpha <- with(alpha, {
+  v_alpha <- with(par_alpha, {
     switch(type,
 
            constant = {
@@ -135,7 +135,7 @@ set_coef <- function(s,
     )
   })
 
-  m_coef <- with(beta, {
+  m_coef <- with(par_beta, {
     switch(type,
 
            constant = {
@@ -229,10 +229,10 @@ set_r <- function(s,
     stop("'r' must be a list.")
 
   # Merge user-supplied control with defaults
-  r <- modifyList(par.control(), r)
+  par_r <- modifyList(par.control(), r)
 
   # Generate vector of r values
-  v_r <- with(r, {
+  v_r <- with(par_r, {
     switch(type,
            constant = {
              if (length(mu) == 1) {
