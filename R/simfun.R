@@ -1,3 +1,157 @@
+#' Control Parameters for Progressive Introduction of Propagules
+#'
+#' Defines settings for how propagule numbers are assigned across species during
+#' simulation warmup. Two introduction modes are supported:
+#'
+#' \describe{
+#'   \item{\code{"sync"}}{All species receive propagules at the same set of
+#'   time points (i.e., propagules are introduced synchronously).}
+#'
+#'   \item{\code{"sequence"}}{Species receive propagules one-by-one in a
+#'   randomized order, with a fixed interval between introductions (i.e.,
+#'   sequential introduction).}
+#' }
+#'
+#' @param type Character string specifying the introduction mode. Must be either
+#'   \code{"sync"} or \code{"sequence"}. Default is \code{"sync"}.
+#'
+#' @param min Numeric. Lower bound of the uniform distribution used to generate
+#'   propagule numbers when species are introduced. Default is \code{0}.
+#'
+#' @param max Numeric. Upper bound of the uniform distribution used to generate
+#'   propagule numbers when species are introduced. Default is \code{1}.
+#'
+#' @param intv Integer. Interval (in time steps) between species introductions.
+#' Default is \code{1}.
+#'
+#' @return A list containing the control parameters:
+#'   \code{list(type, min, max, intv)}.
+#'
+#' @examples
+#' pg.control(type = "sequence", min = 0.2, max = 0.8, intv = 5)
+
+pg.control <- function(type = c("sync",
+                                "sequence"),
+                       min = 0,
+                       max = 1,
+                       intv = 1) {
+
+  type <- match.arg(type)
+
+  list(
+    type = type,
+    min = min,
+    max = max,
+    intv = intv
+  )
+}
+
+#' Generate Propagule Introduction Schedule for Species
+#'
+#' Constructs a matrix \code{m_pg} that specifies when each species receives
+#' non-zero propagule input during a warmup period. This function supports either
+#' synchronous introduction (all species introduced together at regular intervals)
+#' or sequential introduction (species introduced one at a time in randomized
+#' order, separated by a fixed interval).
+#'
+#' The output is a matrix with \code{n_sim} rows (time steps) and \code{s}
+#' columns (species). Values are zero before a species is introduced. When a
+#' species is introduced, its propagule value at that time step is drawn from a
+#' uniform distribution defined by \code{pg$min} and \code{pg$max}.
+#'
+#' @param warmup Integer. Number of warmup time steps during which propagule
+#' introduction occurs.
+#' @param n_sim Integer. Total number of simulation time steps.
+#' @param s Integer. Number of species.
+#' @param pg A list of control settings created with \code{\link{pg.control}}.
+#'   Defines introduction type, bounds of the uniform distribution, and the
+#'   introduction interval when using sequential introduction.
+#'
+#' @details
+#' Two introduction modes are available:
+#'
+#' \describe{
+#'   \item{\code{type = "sync"}}{
+#'   All species receive propagules simultaneously at regular intervals
+#'   determined by \code{intv * s}.}
+#'
+#'   \item{\code{type = "sequence"}}{
+#'   Species receive propagules one by one in a random order. The interval
+#'   between introductions is controlled by \code{pg$intv}. If the final
+#'   introduction time exceeds \code{warmup}, remaining species will not be
+#'   introduced and a warning is issued.}
+#' }
+#'
+#' @return
+#' A numeric matrix of dimension \code{n_sim x s}. Entries are zero until a
+#' species is introduced, at which point propagule values are assigned at the
+#' introduction time step.
+#'
+#' @examples
+#' ## Synchronous propagule introduction
+#' set_pg(warmup = 100, n_sim = 150, s = 4,
+#'        pg = pg.control(type = "sync"))
+#'
+#' ## Sequential propagule introduction every 5 steps
+#' set_pg(warmup = 100, n_sim = 150, s = 4,
+#'        pg = pg.control(type = "sequence", min = 0.2, max = 0.8, intv = 5))
+
+set_pg <- function(warmup,
+                   n_sim,
+                   s,
+                   pg = pg.control()) {
+
+  ## define resample
+  resample <- function(x, ...) x[sample.int(length(x), ...)]
+
+  if (!is.list(pg.control))
+    stop("'pg.control' must be a list.")
+
+  par_pg <- modifyList(pg.control(), pg)
+  m_pg <- matrix(0,
+                 nrow = n_sim,
+                 ncol = s)
+
+  with(par_pg, {
+    switch(type,
+           sync = {
+             ## time index for introduction
+             idx <- seq(from = 1,
+                        to = warmup,
+                        by = intv * s)
+
+             m_pg[idx, ] <- runif(n = s * length(idx),
+                                  min = min,
+                                  max = max)
+
+             return(m_pg)
+           },
+           sequence = {
+             ## time index for introduction
+             idx <- seq(from = 1,
+                        by = intv,
+                        length.out = s)
+
+             if (max(idx) > warmup) {
+               idx <- idx[idx < warmup]
+
+               warning("Introduction times exceed 'warmup'. Species after'warmup' time limit will not be introduced.")
+             }
+
+             ## random species introduction order
+             intro_order <- resample(seq_len(s), size = s)
+             intro_order <- intro_order[seq_len(length(idx))]
+
+             m_pg[cbind(idx, intro_order)] <- runif(n = length(idx),
+                                                    min = min,
+                                                    max = max)
+
+             return(m_pg)
+           },
+           stop("Unsupported type."))
+  })
+}
+
 #' Generate default parameter control settings
 #'
 #' Creates a list of control parameters for generating random or constant values
