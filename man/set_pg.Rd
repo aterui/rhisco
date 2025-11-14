@@ -4,7 +4,7 @@
 \alias{set_pg}
 \title{Generate Propagule Introduction Schedule for Species}
 \usage{
-set_pg(warmup, n_sim, s, pg = pg.control())
+set_pg(warmup, n_sim, s, pg = par.control())
 }
 \arguments{
 \item{warmup}{Integer. Number of warmup time steps during which propagule
@@ -14,9 +14,9 @@ introduction occurs.}
 
 \item{s}{Integer. Number of species.}
 
-\item{pg}{A list of control settings created with \code{\link{pg.control}}.
+\item{pg}{A list of control settings created with \code{\link{par.control}}.
 Defines introduction type, bounds of the uniform distribution, and the
-introduction interval when using sequential introduction.}
+introduction interval.}
 }
 \value{
 A numeric matrix of dimension \code{n_sim x s}. Entries are zero until a
@@ -39,13 +39,13 @@ uniform distribution defined by \code{pg$min} and \code{pg$max}.
 Two introduction modes are available:
 
 \describe{
-\item{\code{type = "sync"}}{
+\item{\code{pg = "sync"}}{
 All species receive propagules simultaneously at regular intervals
-determined by \code{intv * s}.}
+determined by \code{intv}.}
 
-\item{\code{type = "sequence"}}{
+\item{\code{pg = "ord"}}{
 Species receive propagules one by one in a random order. The interval
-between introductions is controlled by \code{pg$intv}. If the final
+between introductions is controlled by \code{intv}. If the final
 introduction time exceeds \code{warmup}, remaining species will not be
 introduced and a warning is issued.}
 }
@@ -55,11 +55,11 @@ introduced and a warning is issued.}
 
 ## Synchronous propagule introduction
 set_pg(warmup = 100, n_sim = 150, s = 4,
-       pg = pg.control(type = "sync"))
+       pg = par.control(pg = "sync"))
 
 ## Sequential propagule introduction every 5 steps
 set_pg(warmup = 100, n_sim = 150, s = 4,
-       pg = pg.control(type = "sequence", min = 0.2, max = 0.8, intv = 5))
+       pg = par.control(pg = "ord", min = 0.2, max = 0.8, intv = 5))
 
 }
 

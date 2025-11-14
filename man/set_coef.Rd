@@ -36,7 +36,7 @@ matrix (before overwriting the diagonal) is generated from \code{beta}.
 Each control list specifies the type of distribution (\code{"constant"}, \code{"exp"},
 \code{"unif"}, or \code{"normal"}) and its associated parameters.
 
-For \code{type = "constant"}, \code{mu} may be either a scalar or a vector of length
+For \code{dist = "constant"}, \code{mu} may be either a scalar or a vector of length
 \eqn{s} for \code{alpha}, and either a scalar or an \eqn{s \times s}
 matrix for \code{beta}. For all other types, random draws are generated
 from the appropriate distribution.
@@ -53,10 +53,10 @@ the user to control the sign of the coefficients.
 set_coef(s = 4)
 
 # Uniform variation in diagonal coefficients
-set_coef(s = 4, alpha = list(type = "unif", min = 0.5, max = 2))
+set_coef(s = 4, alpha = list(dist = "unif", min = 0.5, max = 2))
 
 # Normal variation in off-diagonal interaction strengths
-set_coef(s = 4, beta = list(type = "normal", mu = 0, sd = 0.2))
+set_coef(s = 4, beta = list(dist = "normal", mu = 0, sd = 0.2))
 
 # Keep coefficients positive
 set_coef(s = 4, negative = FALSE)

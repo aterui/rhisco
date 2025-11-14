@@ -16,7 +16,7 @@ csim(
   negative = NULL,
   sd_eps = 0.1,
   stochastic = FALSE,
-  pg = pg.control(),
+  pg = par.control(),
   extinct = 0,
   trim = TRUE
 )
@@ -45,7 +45,7 @@ If \code{NULL}, defaults to \code{TRUE} for Ricker and \code{FALSE} for Beverton
 
 \item{stochastic}{Logical. If \code{TRUE}, applies environmental stochasticity to growth.}
 
-\item{pg}{Object passed to \code{pg.control()}. Defines the propagule introduction schedule.}
+\item{pg}{Object passed to \code{par.control()}. Defines the propagule introduction schedule.}
 
 \item{extinct}{Numeric. Density threshold below which species density is set to zero.}
 

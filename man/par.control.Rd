@@ -2,38 +2,55 @@
 % Please edit documentation in R/simfun.R
 \name{par.control}
 \alias{par.control}
-\title{Generate default parameter control settings}
+\title{Generate control parameters for value generation}
 \usage{
 par.control(
-  type = c("constant", "exp", "unif", "normal"),
+  dist = c("constant", "exp", "unif", "normal"),
+  pg = c("sync", "ord"),
   mu = 1,
   sd = 0.1,
   min = 0,
-  max = 1
+  max = 1,
+  intv = 1
 )
 }
 \arguments{
-\item{type}{Character. The type of parameter generation. Options are:
+\item{dist}{Character. The distribution from which values will be generated.
+Options include:
 \describe{
-\item{constant}{Use a fixed value.}
-\item{exp}{Draw values from an exponential distribution.}
-\item{unif}{Draw values from a uniform distribution.}
-\item{normal}{Draw values from a normal distribution.}
+\item{constant}{Use a fixed value equal to \code{mu}.}
+\item{exp}{Draw values from an exponential distribution with rate = 1 / \code{mu}.}
+\item{unif}{Draw values from a uniform distribution on \code{min} and \code{max}.}
+\item{normal}{Draw values from a normal distribution with mean \code{mu} and
+standard deviation \code{sd}.}
 }}
 
-\item{mu}{Numeric. Mean or fixed value used for \code{constant}, \code{exp}, and \code{normal} types. Default is 1.}
+\item{pg}{Character. Pattern of propagule introduction. Options are:
+\describe{
+\item{sync}{Introduce propagules synchronously across all species.}
+\item{ord}{Introduce propagules in order.}
+}}
 
-\item{sd}{Numeric. Standard deviation for the \code{normal} type. Default is 0.1.}
+\item{mu}{Numeric. Mean or fixed value. Used for \code{constant}, \code{exp}, and
+\code{normal} types. Default is 1.}
 
-\item{min}{Numeric. Minimum value for the \code{unif} type. Default is 0.}
+\item{sd}{Numeric. Standard deviation for the \code{normal} distribution.
+Default is 0.1.}
 
-\item{max}{Numeric. Maximum value for the \code{unif} type. Default is 1.}
+\item{min}{Numeric. Minimum value for the \code{unif} distribution. Default is 0.}
+
+\item{max}{Numeric. Maximum value for the \code{unif} distribution. Default is 1.}
+
+\item{intv}{Numeric. Interval or step size used in certain functions
+(if applicable). Default is 1.}
 }
 \value{
-A list containing the control settings: \code{type}, \code{mu}, \code{sd}, \code{min}, and \code{max}.
+A list containing the control settings:
+\code{dist}, \code{pg}, \code{mu}, \code{sd}, \code{min}, \code{max}, and \code{intv}.
 }
 \description{
-Creates a list of control parameters for generating random or constant values
-used in other functions, such as \code{set_coef} or \code{set_r}. This
-function provides default values and allows users to override them as needed.
+Creates a list of control parameters used when generating random or constant
+values in functions such as \code{set_coef} or \code{set_r}. This helper function
+provides sensible defaults while allowing users to customize the distribution
+type and its associated parameters.
 }

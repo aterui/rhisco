@@ -10,7 +10,7 @@
 #'   \describe{
 #'     \item{constant}{Use a fixed value equal to `mu`.}
 #'     \item{exp}{Draw values from an exponential distribution with rate = 1 / `mu`.}
-#'     \item{unif}{Draw values from a uniform distribution on [`min`, `max`].}
+#'     \item{unif}{Draw values from a uniform distribution on `min` and `max`.}
 #'     \item{normal}{Draw values from a normal distribution with mean `mu` and
 #'                   standard deviation `sd`.}
 #'   }
@@ -77,21 +77,21 @@ par.control <- function(dist = c("constant", "exp", "unif", "normal"),
 #' introduction occurs.
 #' @param n_sim Integer. Total number of simulation time steps.
 #' @param s Integer. Number of species.
-#' @param pg A list of control settings created with \code{\link{pg.control}}.
+#' @param pg A list of control settings created with \code{\link{par.control}}.
 #'   Defines introduction type, bounds of the uniform distribution, and the
-#'   introduction interval when using sequential introduction.
+#'   introduction interval.
 #'
 #' @details
 #' Two introduction modes are available:
 #'
 #' \describe{
-#'   \item{\code{type = "sync"}}{
+#'   \item{\code{pg = "sync"}}{
 #'   All species receive propagules simultaneously at regular intervals
-#'   determined by \code{intv * s}.}
+#'   determined by \code{intv}.}
 #'
-#'   \item{\code{type = "sequence"}}{
+#'   \item{\code{pg = "ord"}}{
 #'   Species receive propagules one by one in a random order. The interval
-#'   between introductions is controlled by \code{pg$intv}. If the final
+#'   between introductions is controlled by \code{intv}. If the final
 #'   introduction time exceeds \code{warmup}, remaining species will not be
 #'   introduced and a warning is issued.}
 #' }
@@ -106,11 +106,11 @@ par.control <- function(dist = c("constant", "exp", "unif", "normal"),
 #'
 #' ## Synchronous propagule introduction
 #' set_pg(warmup = 100, n_sim = 150, s = 4,
-#'        pg = pg.control(type = "sync"))
+#'        pg = par.control(pg = "sync"))
 #'
 #' ## Sequential propagule introduction every 5 steps
 #' set_pg(warmup = 100, n_sim = 150, s = 4,
-#'        pg = pg.control(type = "sequence", min = 0.2, max = 0.8, intv = 5))
+#'        pg = par.control(pg = "ord", min = 0.2, max = 0.8, intv = 5))
 #'
 #' }
 #'
@@ -119,7 +119,7 @@ par.control <- function(dist = c("constant", "exp", "unif", "normal"),
 set_pg <- function(warmup,
                    n_sim,
                    s,
-                   pg = pg.control()) {
+                   pg = par.control()) {
 
   ## define resample
   resample <- function(x, ...) x[sample.int(length(x), ...)]
@@ -127,18 +127,18 @@ set_pg <- function(warmup,
   if (!is.list(pg))
     stop("'pg' must be a list.")
 
-  par_pg <- utils::modifyList(pg.control(), pg)
+  par_pg <- utils::modifyList(par.control(), pg)
   m_pg <- matrix(0,
                  nrow = n_sim,
                  ncol = s)
 
   with(par_pg, {
-    switch(type,
+    switch(pg,
            sync = {
              ## time index for introduction
              idx <- seq(from = 1,
                         to = warmup,
-                        by = intv * s)
+                        by = intv)
 
              m_pg[idx, ] <- stats::runif(n = s * length(idx),
                                          min = min,
@@ -146,7 +146,7 @@ set_pg <- function(warmup,
 
              return(m_pg)
            },
-           sequence = {
+           ord = {
              ## time index for introduction
              idx <- seq(from = 1,
                         by = intv,
@@ -168,7 +168,7 @@ set_pg <- function(warmup,
 
              return(m_pg)
            },
-           stop("Unsupported type."))
+           stop("Unsupported pg."))
   })
 }
 
@@ -196,7 +196,7 @@ set_pg <- function(warmup,
 #'   by `-1`, making them negative. If `FALSE`, coefficients remain positive.
 #'
 #' @details
-#' For `type = "constant"`, `mu` may be either a scalar or a vector of length
+#' For `dist = "constant"`, `mu` may be either a scalar or a vector of length
 #' \eqn{s} for `alpha`, and either a scalar or an \eqn{s \times s}
 #' matrix for `beta`. For all other types, random draws are generated
 #' from the appropriate distribution.
@@ -216,10 +216,10 @@ set_pg <- function(warmup,
 #' set_coef(s = 4)
 #'
 #' # Uniform variation in diagonal coefficients
-#' set_coef(s = 4, alpha = list(type = "unif", min = 0.5, max = 2))
+#' set_coef(s = 4, alpha = list(dist = "unif", min = 0.5, max = 2))
 #'
 #' # Normal variation in off-diagonal interaction strengths
-#' set_coef(s = 4, beta = list(type = "normal", mu = 0, sd = 0.2))
+#' set_coef(s = 4, beta = list(dist = "normal", mu = 0, sd = 0.2))
 #'
 #' # Keep coefficients positive
 #' set_coef(s = 4, negative = FALSE)
@@ -243,7 +243,7 @@ set_coef <- function(s,
   par_beta <- utils::modifyList(par.control(), beta)
 
   v_alpha <- with(par_alpha, {
-    switch(type,
+    switch(dist,
 
            constant = {
              if (length(mu) == 1) {
@@ -271,12 +271,12 @@ set_coef <- function(s,
                                  mean = mu,
                                  sd = sd),
 
-           stop("Unsupported type in 'alpha'.")
+           stop("Unsupported dist in 'alpha'.")
     )
   })
 
   m_coef <- with(par_beta, {
-    switch(type,
+    switch(dist,
 
            constant = {
              if (length(mu) == 1) {
@@ -285,7 +285,7 @@ set_coef <- function(s,
                       ncol = s)
              } else {
                if (!is.matrix(mu) || any(dim(mu) != c(s, s)))
-                 stop("'mu' in 'beta' must be scalar or s x s matrix when type = 'constant'.")
+                 stop("'mu' in 'beta' must be scalar or s x s matrix when dist = 'constant'.")
 
                mu
              }
@@ -312,7 +312,7 @@ set_coef <- function(s,
                            nrow = s,
                            ncol = s),
 
-           stop("Unsupported type in 'beta'.")
+           stop("Unsupported dist in 'beta'.")
     )
   })
 
@@ -339,7 +339,7 @@ set_coef <- function(s,
 #' @details
 #' The `r` list specifies the type of distribution (`"constant"`,
 #' `"exp"`, `"unif"`, or `"normal"`) and its associated parameters (`mu`, `sd`,
-#' `min`, `max`). For `type = "constant"`, `mu` may be a scalar or a vector of
+#' `min`, `max`). For `dist = "constant"`, `mu` may be a scalar or a vector of
 #' length \eqn{s}. For other types, random draws are generated from the specified
 #' distribution. For `exp` type, `mu` must be positive.
 #'
@@ -352,13 +352,13 @@ set_coef <- function(s,
 #' set_r(s = 5)
 #'
 #' # Exponentially distributed growth rates
-#' set_r(s = 5, r = list(type = "exp", mu = 0.5))
+#' set_r(s = 5, r = list(dist = "exp", mu = 0.5))
 #'
 #' # Uniformly distributed growth rates
-#' set_r(s = 5, r = list(type = "unif", min = 0, max = 1))
+#' set_r(s = 5, r = list(dist = "unif", min = 0, max = 1))
 #'
 #' # Normally distributed growth rates
-#' set_r(s = 5, r = list(type = "normal", mu = 0.5, sd = 0.1))
+#' set_r(s = 5, r = list(dist = "normal", mu = 0.5, sd = 0.1))
 #' }
 #'
 #' @export
@@ -375,7 +375,7 @@ set_r <- function(s,
 
   # Generate vector of r values
   v_r <- with(par_r, {
-    switch(type,
+    switch(dist,
            constant = {
              if (length(mu) == 1) {
                rep(mu, times = s)
@@ -399,7 +399,7 @@ set_r <- function(s,
                                  mean = mu,
                                  sd = sd),
 
-           stop("Unsupported type in 'r'.")
+           stop("Unsupported dist in 'r'.")
     )
   })
 
@@ -501,7 +501,7 @@ fn_model <- function(model) {
 #'   If `NULL`, defaults to `TRUE` for Ricker and `FALSE` for Beverton-Holt.
 #' @param sd_eps Numeric. Standard deviation of environmental stochasticity.
 #' @param stochastic Logical. If `TRUE`, applies environmental stochasticity to growth.
-#' @param pg Object passed to `pg.control()`. Defines the propagule introduction schedule.
+#' @param pg Object passed to `par.control()`. Defines the propagule introduction schedule.
 #' @param extinct Numeric. Density threshold below which species density is set to zero.
 #' @param trim Logical. If `TRUE` (default), returns only post warmup+burn-in timesteps.
 #'
@@ -527,7 +527,7 @@ csim <- function(ts = 1000,
                  negative = NULL,
                  sd_eps = 0.1,
                  stochastic = FALSE,
-                 pg = pg.control(),
+                 pg = par.control(),
                  extinct = 0,
                  trim = TRUE) {
 

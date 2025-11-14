@@ -26,7 +26,7 @@ which is a list produced by \code{\link[=par.control]{par.control()}}.
 \details{
 The \code{r} list specifies the type of distribution (\code{"constant"},
 \code{"exp"}, \code{"unif"}, or \code{"normal"}) and its associated parameters (\code{mu}, \code{sd},
-\code{min}, \code{max}). For \code{type = "constant"}, \code{mu} may be a scalar or a vector of
+\code{min}, \code{max}). For \code{dist = "constant"}, \code{mu} may be a scalar or a vector of
 length \eqn{s}. For other types, random draws are generated from the specified
 distribution. For \code{exp} type, \code{mu} must be positive.
 }
@@ -36,13 +36,13 @@ distribution. For \code{exp} type, \code{mu} must be positive.
 set_r(s = 5)
 
 # Exponentially distributed growth rates
-set_r(s = 5, r = list(type = "exp", mu = 0.5))
+set_r(s = 5, r = list(dist = "exp", mu = 0.5))
 
 # Uniformly distributed growth rates
-set_r(s = 5, r = list(type = "unif", min = 0, max = 1))
+set_r(s = 5, r = list(dist = "unif", min = 0, max = 1))
 
 # Normally distributed growth rates
-set_r(s = 5, r = list(type = "normal", mu = 0.5, sd = 0.1))
+set_r(s = 5, r = list(dist = "normal", mu = 0.5, sd = 0.1))
 }
 
 }
