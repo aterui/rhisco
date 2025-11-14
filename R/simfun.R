@@ -33,6 +33,8 @@
 #' @param intv Numeric. Interval or step size used in certain functions
 #'   (if applicable). Default is 1.
 #'
+#' @param seed Integer. Set seed for random number generation.
+#'
 #' @return A list containing the control settings:
 #'   `dist`, `pg`, `mu`, `sd`, `min`, `max`, and `intv`.
 #'
@@ -44,7 +46,8 @@ par.control <- function(dist = c("constant", "exp", "unif", "normal"),
                         sd = 0.1,
                         min = 0,
                         max = 1,
-                        intv = 1) {
+                        intv = 1,
+                        seed = NA) {
 
   dist <- match.arg(dist)
   pg   <- match.arg(pg)
@@ -56,7 +59,8 @@ par.control <- function(dist = c("constant", "exp", "unif", "normal"),
     sd   = sd,
     min  = min,
     max  = max,
-    intv = intv
+    intv = intv,
+    seed = seed
   )
 }
 
@@ -168,7 +172,7 @@ set_pg <- function(warmup,
 
              return(m_pg)
            },
-           stop("Unsupported pg."))
+           stop("Unsupported pg type."))
   })
 }
 
@@ -251,7 +255,6 @@ set_coef <- function(s,
              } else {
                if (length(mu) != s)
                  stop("'mu' in 'alpha' must be scalar or vector of length ", s)
-
                mu
              }
            },
@@ -259,17 +262,24 @@ set_coef <- function(s,
            exp = {
              if (mu <= 0) stop("'mu' must be positive for 'exp' type")
 
+             set.seed(seed)
              stats::rexp(n = s,
                          rate = 1 / mu)
            },
 
-           unif = stats::runif(n = s,
-                               min = min,
-                               max = max),
+           unif = {
+             set.seed(seed)
+             stats::runif(n = s,
+                          min = min,
+                          max = max)
+           },
 
-           normal = stats::rnorm(n = s,
-                                 mean = mu,
-                                 sd = sd),
+           normal = {
+             set.seed(seed)
+             stats::rnorm(n = s,
+                          mean = mu,
+                          sd = sd)
+           },
 
            stop("Unsupported dist in 'alpha'.")
     )
@@ -293,24 +303,30 @@ set_coef <- function(s,
 
            exp = {
              if (mu <= 0) stop("'mu' must be positive for 'exp' type")
-
+             set.seed(seed)
              matrix(stats::rexp(n = s * s,
                                 rate = 1 / mu),
                     nrow = s,
                     ncol = s)
            },
 
-           unif = matrix(stats::runif(n = s * s,
-                                      min = min,
-                                      max = max),
-                         nrow = s,
-                         ncol = s),
+           unif = {
+             set.seed(seed)
+             matrix(stats::runif(n = s * s,
+                                 min = min,
+                                 max = max),
+                    nrow = s,
+                    ncol = s)
+           },
 
-           normal = matrix(stats::rnorm(n = s * s,
-                                        mean = mu,
-                                        sd = sd),
-                           nrow = s,
-                           ncol = s),
+           normal = {
+             set.seed(seed)
+             matrix(stats::rnorm(n = s * s,
+                                 mean = mu,
+                                 sd = sd),
+                    nrow = s,
+                    ncol = s)
+           },
 
            stop("Unsupported dist in 'beta'.")
     )
@@ -376,6 +392,7 @@ set_r <- function(s,
   # Generate vector of r values
   v_r <- with(par_r, {
     switch(dist,
+
            constant = {
              if (length(mu) == 1) {
                rep(mu, times = s)
@@ -388,16 +405,25 @@ set_r <- function(s,
 
            exp = {
              if (mu <= 0) stop("'mu' must be positive for 'exp' type")
-             stats::rexp(n = s, rate = 1 / mu)
+
+             set.seed(seed)
+             stats::rexp(n = s,
+                         rate = 1 / mu)
            },
 
-           unif = stats::runif(n = s,
-                               min = min,
-                               max = max),
+           unif = {
+             set.seed(seed)
+             stats::runif(n = s,
+                          min = min,
+                          max = max)
+           },
 
-           normal = stats::rnorm(n = s,
-                                 mean = mu,
-                                 sd = sd),
+           normal = {
+             set.seed(seed)
+             stats::rnorm(n = s,
+                          mean = mu,
+                          sd = sd)
+           },
 
            stop("Unsupported dist in 'r'.")
     )

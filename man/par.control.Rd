@@ -11,7 +11,8 @@ par.control(
   sd = 0.1,
   min = 0,
   max = 1,
-  intv = 1
+  intv = 1,
+  seed = NA
 )
 }
 \arguments{
@@ -43,6 +44,8 @@ Default is 0.1.}
 
 \item{intv}{Numeric. Interval or step size used in certain functions
 (if applicable). Default is 1.}
+
+\item{seed}{Integer. Set seed for random number generation.}
 }
 \value{
 A list containing the control settings:
