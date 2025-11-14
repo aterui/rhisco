@@ -1,51 +1,61 @@
-#' Control Parameters for Progressive Introduction of Propagules
+#' Generate control parameters for value generation
 #'
-#' Defines settings for how propagule numbers are assigned across species during
-#' simulation warmup. Two introduction modes are supported:
+#' Creates a list of control parameters used when generating random or constant
+#' values in functions such as `set_coef` or `set_r`. This helper function
+#' provides sensible defaults while allowing users to customize the distribution
+#' type and its associated parameters.
 #'
-#' \describe{
-#'   \item{\code{"sync"}}{All species receive propagules at the same set of
-#'   time points (i.e., propagules are introduced synchronously).}
+#' @param dist Character. The distribution from which values will be generated.
+#'   Options include:
+#'   \describe{
+#'     \item{constant}{Use a fixed value equal to `mu`.}
+#'     \item{exp}{Draw values from an exponential distribution with rate = 1 / `mu`.}
+#'     \item{unif}{Draw values from a uniform distribution on [`min`, `max`].}
+#'     \item{normal}{Draw values from a normal distribution with mean `mu` and
+#'                   standard deviation `sd`.}
+#'   }
 #'
-#'   \item{\code{"sequence"}}{Species receive propagules one-by-one in a
-#'   randomized order, with a fixed interval between introductions (i.e.,
-#'   sequential introduction).}
-#' }
+#' @param pg Character. Pattern of propagule introduction. Options are:
+#'   \describe{
+#'     \item{sync}{Introduce propagules synchronously across all species.}
+#'     \item{ord}{Introduce propagules in order.}
+#'   }
 #'
-#' @param type Character string specifying the introduction mode. Must be either
-#'   \code{"sync"} or \code{"sequence"}. Default is \code{"sync"}.
+#' @param mu Numeric. Mean or fixed value. Used for `constant`, `exp`, and
+#'   `normal` types. Default is 1.
 #'
-#' @param min Numeric. Lower bound of the uniform distribution used to generate
-#'   propagule numbers when species are introduced. Default is \code{0}.
+#' @param sd Numeric. Standard deviation for the `normal` distribution.
+#'   Default is 0.1.
 #'
-#' @param max Numeric. Upper bound of the uniform distribution used to generate
-#'   propagule numbers when species are introduced. Default is \code{1}.
+#' @param min Numeric. Minimum value for the `unif` distribution. Default is 0.
+#' @param max Numeric. Maximum value for the `unif` distribution. Default is 1.
 #'
-#' @param intv Integer. Interval (in time steps) between species introductions.
-#' Default is \code{1}.
+#' @param intv Numeric. Interval or step size used in certain functions
+#'   (if applicable). Default is 1.
 #'
-#' @return A list containing the control parameters:
-#'   \code{list(type, min, max, intv)}.
-#'
-#' @examples
-#' \dontrun{
-#' pg.control(type = "sequence", min = 0.2, max = 0.8, intv = 5)
-#' }
+#' @return A list containing the control settings:
+#'   `dist`, `pg`, `mu`, `sd`, `min`, `max`, and `intv`.
 #'
 #' @export
 
-pg.control <- function(type = c("sync",
-                                "sequence"),
-                       min = 0,
-                       max = 1,
-                       intv = 1) {
+par.control <- function(dist = c("constant", "exp", "unif", "normal"),
+                        pg = c("sync", "ord"),
+                        mu = 1,
+                        sd = 0.1,
+                        min = 0,
+                        max = 1,
+                        intv = 1) {
 
-  type <- match.arg(type)
+  dist <- match.arg(dist)
+  pg   <- match.arg(pg)
 
   list(
-    type = type,
-    min = min,
-    max = max,
+    dist = dist,
+    pg   = pg,
+    mu   = mu,
+    sd   = sd,
+    min  = min,
+    max  = max,
     intv = intv
   )
 }
@@ -160,44 +170,6 @@ set_pg <- function(warmup,
            },
            stop("Unsupported type."))
   })
-}
-
-#' Generate default parameter control settings
-#'
-#' Creates a list of control parameters for generating random or constant values
-#' used in other functions, such as `set_coef` or `set_r`. This
-#' function provides default values and allows users to override them as needed.
-#'
-#' @param type Character. The type of parameter generation. Options are:
-#'   \describe{
-#'     \item{constant}{Use a fixed value.}
-#'     \item{exp}{Draw values from an exponential distribution.}
-#'     \item{unif}{Draw values from a uniform distribution.}
-#'     \item{normal}{Draw values from a normal distribution.}
-#'   }
-#' @param mu Numeric. Mean or fixed value used for `constant`, `exp`, and `normal` types. Default is 1.
-#' @param sd Numeric. Standard deviation for the `normal` type. Default is 0.1.
-#' @param min Numeric. Minimum value for the `unif` type. Default is 0.
-#' @param max Numeric. Maximum value for the `unif` type. Default is 1.
-#'
-#' @return A list containing the control settings: `type`, `mu`, `sd`, `min`, and `max`.
-#' @export
-
-par.control <- function(type = c("constant", "exp", "unif", "normal"),
-                        mu = 1,
-                        sd = 0.1,
-                        min = 0,
-                        max = 1) {
-
-  type <- match.arg(type)
-
-  list(
-    type = type,
-    mu   = mu,
-    sd   = sd,
-    min  = min,
-    max  = max
-  )
 }
 
 #' Generate Diagonal and Interaction Coefficients
