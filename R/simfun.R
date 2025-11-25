@@ -137,6 +137,9 @@ set_pg <- function(warmup,
                  ncol = s)
 
   with(par_pg, {
+
+    if (!is.na(seed)) set.seed(seed)
+
     switch(pg,
            sync = {
              ## time index for introduction
@@ -247,6 +250,9 @@ set_coef <- function(s,
   par_beta <- utils::modifyList(par.control(), beta)
 
   v_alpha <- with(par_alpha, {
+
+    if (!is.na(seed)) set.seed(seed)
+
     switch(dist,
 
            constant = {
@@ -262,20 +268,17 @@ set_coef <- function(s,
            exp = {
              if (mu <= 0) stop("'mu' must be positive for 'exp' type")
 
-             set.seed(seed)
              stats::rexp(n = s,
                          rate = 1 / mu)
            },
 
            unif = {
-             set.seed(seed)
              stats::runif(n = s,
                           min = min,
                           max = max)
            },
 
            normal = {
-             set.seed(seed)
              stats::rnorm(n = s,
                           mean = mu,
                           sd = sd)
@@ -286,6 +289,9 @@ set_coef <- function(s,
   })
 
   m_coef <- with(par_beta, {
+
+    if (!is.na(seed)) set.seed(seed)
+
     switch(dist,
 
            constant = {
@@ -303,7 +309,6 @@ set_coef <- function(s,
 
            exp = {
              if (mu <= 0) stop("'mu' must be positive for 'exp' type")
-             set.seed(seed)
              matrix(stats::rexp(n = s * s,
                                 rate = 1 / mu),
                     nrow = s,
@@ -311,7 +316,6 @@ set_coef <- function(s,
            },
 
            unif = {
-             set.seed(seed)
              matrix(stats::runif(n = s * s,
                                  min = min,
                                  max = max),
@@ -320,7 +324,6 @@ set_coef <- function(s,
            },
 
            normal = {
-             set.seed(seed)
              matrix(stats::rnorm(n = s * s,
                                  mean = mu,
                                  sd = sd),
@@ -391,6 +394,9 @@ set_r <- function(s,
 
   # Generate vector of r values
   v_r <- with(par_r, {
+
+    if (!is.na(seed)) set.seed(seed)
+
     switch(dist,
 
            constant = {
@@ -406,20 +412,17 @@ set_r <- function(s,
            exp = {
              if (mu <= 0) stop("'mu' must be positive for 'exp' type")
 
-             set.seed(seed)
              stats::rexp(n = s,
                          rate = 1 / mu)
            },
 
            unif = {
-             set.seed(seed)
              stats::runif(n = s,
                           min = min,
                           max = max)
            },
 
            normal = {
-             set.seed(seed)
              stats::rnorm(n = s,
                           mean = mu,
                           sd = sd)
