@@ -53,8 +53,8 @@ par.control <- function(dist = c("constant", "exp", "unif", "normal"),
   pg   <- match.arg(pg)
 
   list(
-    dist = as.character(dist),
-    pg   = as.character(pg),
+    dist = dist,
+    pg   = pg,
     mu   = mu,
     sd   = sd,
     min  = min,
