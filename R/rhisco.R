@@ -171,16 +171,15 @@ loocv <- function(formula,
   )
 
   ## select random subset
-  if (!is.null(seed))
-    set.seed(seed)
-
   if (is.null(size))
     size <- length(unique(data[[tcol]]))
 
-  v_t <- unique(data[[tcol]]) |>
-    resample(size = size,
-             replace = FALSE) |>
-    sort()
+  v_t <- gen_values(seed, {
+    unique(data[[tcol]]) |>
+      resample(size = size,
+               replace = FALSE) |>
+      sort()
+  })
 
   data$w <- 1
 

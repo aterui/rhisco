@@ -161,7 +161,7 @@ get_dfun <- function(type,
 #' @export
 
 gen_values <- function(seed, fn) {
-  if (!is.na(seed)) {
+  if (!(is.na(seed) || is.null(seed))) {
     withr::with_seed(seed, fn())
   } else {
     fn()
