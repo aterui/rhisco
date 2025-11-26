@@ -138,44 +138,47 @@ set_pg <- function(warmup,
 
   with(par_pg, {
 
-    if (!is.na(seed)) set.seed(seed)
+    gen_values(seed, function() {
 
-    switch(pg,
-           sync = {
-             ## time index for introduction
-             idx <- seq(from = 1,
-                        to = warmup,
-                        by = intv)
+      switch(pg,
+             sync = {
+               ## time index for introduction
+               idx <- seq(from = 1,
+                          to = warmup,
+                          by = intv)
 
-             m_pg[idx, ] <- stats::runif(n = s * length(idx),
-                                         min = min,
-                                         max = max)
+               m_pg[idx, ] <- stats::runif(n = s * length(idx),
+                                           min = min,
+                                           max = max)
 
-             return(m_pg)
-           },
-           ord = {
-             ## time index for introduction
-             idx <- seq(from = 1,
-                        by = intv,
-                        length.out = s)
+               return(m_pg)
+             },
+             ord = {
+               ## time index for introduction
+               idx <- seq(from = 1,
+                          by = intv,
+                          length.out = s)
 
-             if (max(idx) > warmup) {
-               idx <- idx[idx < warmup]
+               if (max(idx) > warmup) {
+                 idx <- idx[idx < warmup]
 
-               warning("Introduction times exceed 'warmup'. Species after'warmup' time limit will not be introduced.")
-             }
+                 warning("Introduction times exceed 'warmup'. Species after'warmup' time limit will not be introduced.")
+               }
 
-             ## random species introduction order
-             intro_order <- resample(seq_len(s), size = s)
-             intro_order <- intro_order[seq_len(length(idx))]
+               ## random species introduction order
+               intro_order <- resample(seq_len(s), size = s)
+               intro_order <- intro_order[seq_len(length(idx))]
 
-             m_pg[cbind(idx, intro_order)] <- stats::runif(n = length(idx),
-                                                           min = min,
-                                                           max = max)
+               m_pg[cbind(idx, intro_order)] <- stats::runif(n = length(idx),
+                                                             min = min,
+                                                             max = max)
 
-             return(m_pg)
-           },
-           stop("Unsupported pg type."))
+               return(m_pg)
+             },
+             stop("Unsupported pg type."))
+
+    })
+
   })
 }
 
@@ -251,89 +254,94 @@ set_coef <- function(s,
 
   v_alpha <- with(par_alpha, {
 
-    if (!is.na(seed)) set.seed(seed)
+    gen_values(seed, function() {
 
-    switch(dist,
+      switch(dist,
+             constant = {
+               if (length(mu) == 1) {
+                 rep(mu, times = s)
+               } else {
+                 if (length(mu) != s)
+                   stop("'mu' in 'alpha' must be scalar or vector of length ", s)
+                 mu
+               }
+             },
 
-           constant = {
-             if (length(mu) == 1) {
-               rep(mu, times = s)
-             } else {
-               if (length(mu) != s)
-                 stop("'mu' in 'alpha' must be scalar or vector of length ", s)
-               mu
-             }
-           },
+             exp = {
+               if (mu <= 0) stop("'mu' must be positive for 'exp' type")
 
-           exp = {
-             if (mu <= 0) stop("'mu' must be positive for 'exp' type")
+               stats::rexp(n = s,
+                           rate = 1 / mu)
+             },
 
-             stats::rexp(n = s,
-                         rate = 1 / mu)
-           },
+             unif = {
+               stats::runif(n = s,
+                            min = min,
+                            max = max)
+             },
 
-           unif = {
-             stats::runif(n = s,
-                          min = min,
-                          max = max)
-           },
+             normal = {
+               stats::rnorm(n = s,
+                            mean = mu,
+                            sd = sd)
+             },
 
-           normal = {
-             stats::rnorm(n = s,
-                          mean = mu,
-                          sd = sd)
-           },
+             stop("Unsupported dist in 'alpha'.")
+      )
 
-           stop("Unsupported dist in 'alpha'.")
-    )
-  })
+    }) # gen_values
+
+  }) # with
 
   m_coef <- with(par_beta, {
 
-    if (!is.na(seed)) set.seed(seed)
+    gen_values(seed, function() {
 
-    switch(dist,
+      switch(dist,
 
-           constant = {
-             if (length(mu) == 1) {
-               matrix(mu,
+             constant = {
+               if (length(mu) == 1) {
+                 matrix(mu,
+                        nrow = s,
+                        ncol = s)
+               } else {
+                 if (!is.matrix(mu) || any(dim(mu) != c(s, s)))
+                   stop("'mu' in 'beta' must be scalar or s x s matrix when dist = 'constant'.")
+
+                 mu
+               }
+             },
+
+             exp = {
+               if (mu <= 0) stop("'mu' must be positive for 'exp' type")
+               matrix(stats::rexp(n = s * s,
+                                  rate = 1 / mu),
                       nrow = s,
                       ncol = s)
-             } else {
-               if (!is.matrix(mu) || any(dim(mu) != c(s, s)))
-                 stop("'mu' in 'beta' must be scalar or s x s matrix when dist = 'constant'.")
+             },
 
-               mu
-             }
-           },
+             unif = {
+               matrix(stats::runif(n = s * s,
+                                   min = min,
+                                   max = max),
+                      nrow = s,
+                      ncol = s)
+             },
 
-           exp = {
-             if (mu <= 0) stop("'mu' must be positive for 'exp' type")
-             matrix(stats::rexp(n = s * s,
-                                rate = 1 / mu),
-                    nrow = s,
-                    ncol = s)
-           },
+             normal = {
+               matrix(stats::rnorm(n = s * s,
+                                   mean = mu,
+                                   sd = sd),
+                      nrow = s,
+                      ncol = s)
+             },
 
-           unif = {
-             matrix(stats::runif(n = s * s,
-                                 min = min,
-                                 max = max),
-                    nrow = s,
-                    ncol = s)
-           },
+             stop("Unsupported dist in 'beta'.")
+      )
 
-           normal = {
-             matrix(stats::rnorm(n = s * s,
-                                 mean = mu,
-                                 sd = sd),
-                    nrow = s,
-                    ncol = s)
-           },
+    }) # gen_values
 
-           stop("Unsupported dist in 'beta'.")
-    )
-  })
+  }) # with
 
   diag(m_coef) <- v_alpha
 
@@ -395,42 +403,45 @@ set_r <- function(s,
   # Generate vector of r values
   v_r <- with(par_r, {
 
-    if (!is.na(seed)) set.seed(seed)
+    gen_values(seed, function() {
 
-    switch(dist,
+      switch(dist,
 
-           constant = {
-             if (length(mu) == 1) {
-               rep(mu, times = s)
-             } else {
-               if (length(mu) != s)
-                 stop("'mu' in 'r' must be scalar or vector of length ", s)
-               mu
-             }
-           },
+             constant = {
+               if (length(mu) == 1) {
+                 rep(mu, times = s)
+               } else {
+                 if (length(mu) != s)
+                   stop("'mu' in 'r' must be scalar or vector of length ", s)
+                 mu
+               }
+             },
 
-           exp = {
-             if (mu <= 0) stop("'mu' must be positive for 'exp' type")
+             exp = {
+               if (mu <= 0) stop("'mu' must be positive for 'exp' type")
 
-             stats::rexp(n = s,
-                         rate = 1 / mu)
-           },
+               stats::rexp(n = s,
+                           rate = 1 / mu)
+             },
 
-           unif = {
-             stats::runif(n = s,
-                          min = min,
-                          max = max)
-           },
+             unif = {
+               stats::runif(n = s,
+                            min = min,
+                            max = max)
+             },
 
-           normal = {
-             stats::rnorm(n = s,
-                          mean = mu,
-                          sd = sd)
-           },
+             normal = {
+               stats::rnorm(n = s,
+                            mean = mu,
+                            sd = sd)
+             },
 
-           stop("Unsupported dist in 'r'.")
-    )
-  })
+             stop("Unsupported dist in 'r'.")
+      )
+
+    }) # gen_values
+
+  }) # with
 
   return(v_r)
 }

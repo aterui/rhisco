@@ -149,3 +149,21 @@ get_dfun <- function(type,
          stop("Unsupported type"))
 
 }
+
+#' Run an expression with an optional local random seed
+#'
+#' @param seed Numeric or NA. If numeric, sets a local RNG seed for reproducibility.
+#'             If NA, runs the expression using the current RNG state.
+#' @param fn A function with no arguments that returns the value to generate.
+#'
+#' @return The result of evaluating \code{fn()} with or without the local seed.
+#'
+#' @export
+
+gen_values <- function(seed, fn) {
+  if (!is.na(seed)) {
+    withr::with_seed(seed, fn())
+  } else {
+    fn()
+  }
+}

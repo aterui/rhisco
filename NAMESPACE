@@ -2,6 +2,7 @@
 
 export(csim)
 export(fn_model)
+export(gen_values)
 export(get_dfun)
 export(get_psi)
 export(lag_base)
