@@ -174,7 +174,7 @@ loocv <- function(formula,
   if (is.null(size))
     size <- length(unique(data[[tcol]]))
 
-  v_t <- gen_values(seed, {
+  v_t <- gen_values(seed, function() {
     unique(data[[tcol]]) |>
       resample(size = size,
                replace = FALSE) |>
