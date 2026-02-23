@@ -162,7 +162,7 @@ set_pg <- function(warmup,
                if (max(idx) > warmup) {
                  idx <- idx[idx < warmup]
 
-                 warning("Introduction times exceed 'warmup'. Species after'warmup' time limit will not be introduced.")
+                 warning("Introduction times exceed 'warmup'. Species after 'warmup' time were not introduced.")
                }
 
                ## random species introduction order
@@ -628,18 +628,16 @@ csim <- function(ts = 1000,
   # dynamics ----------------------------------------------------------------
 
   ## initialize m_dyn[,]
-  m_dyn[1:s, ] <- cbind(rep(1, s), # time step
-                        seq_len(s), # species ID
-                        m_pg[1, ] # initial density
+  m_dyn[1:s, ] <- cbind(
+    rep(1, s), # time step
+    seq_len(s), # species ID
+    m_pg[1, ] # initial density
   )
 
   ## initialize density
-  v_n <- rep(0, times = s)
+  v_n <- m_pg[1, ]
 
   for (i in 1:(n_sim - 1)) {
-
-    ## add propagule
-    v_n <- v_n + m_pg[i, ]
 
     ## update density
     v_n <- dyn(r = v_r,
@@ -648,7 +646,11 @@ csim <- function(ts = 1000,
                eps = m_eps[i, ],
                stochastic = stochastic)
 
+    ## extinction
     v_n[v_n < extinct] <- 0
+
+    ## add propagule
+    v_n <- v_n + m_pg[i + 1, ]
 
     row_id <- seq(from = st_row[i + 1],
                   to = st_row[i + 1] + (s - 1),
