@@ -167,3 +167,24 @@ gen_values <- function(seed, fn) {
     fn()
   }
 }
+
+#' Extract grouping factor from a mixed-effects formula
+#'
+#' Returns the first grouping factor (text after `|`) in a mixed-effects
+#' model formula. If no random-effect term is present, `NULL` is returned.
+#'
+#' @param formula A model formula potentially containing random effects,
+#'   e.g. `y ~ x + (1 | species)`.
+#'
+#' @return A character string giving the grouping factor name,
+#'   or `NULL` if no random effect is found.
+#'
+#' @export
+
+extract_group <- function(formula) {
+  re_terms <- lme4::findbars(formula)
+
+  if (length(re_terms) == 0) return(NULL)
+
+  as.character(re_terms[[1]][[3]])
+}
