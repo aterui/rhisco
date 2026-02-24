@@ -432,6 +432,12 @@ get_psi <- function(formula,
                     method = "max",
                     ...) {
 
+
+  # check group input -------------------------------------------------------
+
+  if (is.null(group))
+    stop("Missing 'group' argument.")
+
   # reformat data -----------------------------------------------------------
 
   ## Euclidean distance to the point of approximation
