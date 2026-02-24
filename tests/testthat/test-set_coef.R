@@ -1,5 +1,7 @@
 # tests/testthat/test-set_coef.R
 
+library(tidyverse)
+
 test_that("set_coef returns s x s matrix", {
   s <- sample(2:10, 1)
   alpha <- par.control(dist = "constant", mu = 1, seed = 123)

@@ -1,5 +1,7 @@
 # tests/testthat/test-par.R
 
+library(tidyverse)
+
 test_that("par.control returns a list with expected names", {
   out <- par.control()
   expect_type(out, "list")

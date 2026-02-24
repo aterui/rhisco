@@ -1,5 +1,7 @@
 # tests/testthat/test-fn_model.R
 
+library(tidyverse)
+
 test_that("fn_model returns a function", {
   dyn_bh <- fn_model("bh")
   dyn_ricker <- fn_model("ricker")

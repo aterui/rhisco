@@ -1,6 +1,6 @@
 # tests/testthat/test-csim.R
 
-library(dplyr)
+library(tidyverse)
 
 test_that("csim returns tibble with correct columns and rows", {
   s <- sample(2:5, 1)

@@ -1,7 +1,6 @@
 # tests/testthat/test-loocv.R
 
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 
 test_that("loocv returns numeric RMSE", {
   df <- data.frame(

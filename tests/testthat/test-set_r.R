@@ -1,5 +1,7 @@
 # tests/testthat/test-set_r.R
 
+library(tidyverse)
+
 test_that("set_r returns vector of length s", {
   s <- sample(2:10, 1)
   r <- par.control(dist = "constant", mu = 1, seed = 123)

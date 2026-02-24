@@ -1,5 +1,7 @@
 # tests/testthat/test-get_dfun.R
 
+library(tidyverse)
+
 test_that("exp type works with max scaling", {
 
   x <- c(1, 2, 4)

@@ -1,6 +1,6 @@
 # tests/testthat/test-xeq.R
 
-library(dplyr)
+library(tidyverse)
 
 test_that("xeq supports different weight types and functions", {
 

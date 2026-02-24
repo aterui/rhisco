@@ -1,9 +1,6 @@
 # tests/testthat/test-get_psi.R
 
-library(dplyr)
-skip_if_not_installed("MASS")
-skip_if_not_installed("lme4")
-skip_if_not_installed("glmmTMB")
+library(tidyverse)
 
 test_that("get_psi returns numeric psi with correct attributes", {
 

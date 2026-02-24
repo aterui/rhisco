@@ -1,5 +1,7 @@
 # tests/testthat/test-lag_block.R
 
+library(tidyverse)
+
 test_that("lag_block works without index", {
 
   n <- sample(100, 1)

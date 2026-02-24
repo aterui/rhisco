@@ -1,5 +1,7 @@
 # tests/testthat/test-set_pg.R
 
+library(tidyverse)
+
 test_that("set_pg returns correct matrix dimensions", {
 
   intv <- sample(10, size = 1)
