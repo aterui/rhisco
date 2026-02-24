@@ -217,7 +217,7 @@ test_that("loocv works with lmer if lme4 installed", {
   df <- data.frame(
     t = 1:5
   ) %>%
-    tidyr::crossing(
+    crossing(
       species = 1:5
     ) %>%
     mutate(
@@ -243,7 +243,7 @@ test_that("loocv works with glmer if lme4 installed", {
   df <- data.frame(
     t = 1:5
   ) %>%
-    tidyr::crossing(species = 1:5) %>%
+    crossing(species = 1:5) %>%
     mutate(
       x = rnorm(n = nrow(.)),
       y = rpois(n = nrow(.), lambda = 5)
@@ -268,7 +268,7 @@ test_that("loocv works with glmmTMB if glmmTMB installed", {
   df <- data.frame(
     t = 1:5
   ) %>%
-    tidyr::crossing(species = 1:5) %>%
+    crossing(species = 1:5) %>%
     mutate(
       x = rnorm(n = nrow(.)),
       y = rpois(n = nrow(.), lambda = 5)

@@ -64,7 +64,7 @@ inla_lmer <- function(formula,
 
   # Extract terms
   tt <- stats::terms(formula, keep.order = TRUE)
-  v_bars <- lme4::findbars(formula)
+  v_bars <- reformulas::findbars(formula)
 
   res <- attr(tt, "variables")[[2]]
   allt <- attr(tt, "term.labels")
