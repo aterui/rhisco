@@ -38,6 +38,7 @@ test_that("get_psi works with glm", {
 
   psi <- get_psi(
     y ~ n_lag + nt_lag,
+    group = "species",
     data = df,
     x_star = 15,
     model = "glm",

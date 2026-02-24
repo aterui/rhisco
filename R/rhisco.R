@@ -101,9 +101,7 @@ loocv <- function(formula,
     length()
 
   if (n_unq_t != n_gr)
-    stop(paste("All operational units in",
-               sQuote(group),
-               "must contain one observation in each timestep"))
+    stop(paste("All operational units in 'group' must contain one observation in each timestep"))
 
   ## define dfun
   dfun <- get_dfun(type = type,
