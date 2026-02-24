@@ -458,8 +458,6 @@ get_psi <- function(formula,
 
   # fit ---------------------------------------------------------------------
 
-  if (is.null(seed)) seed <- stats::rpois(1, 100)
-
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
                    function(x) {
@@ -576,7 +574,7 @@ get_psi <- function(formula,
   ## estimate psi
   psi <- mean(v_r < 0)
 
-  if (class(m) %in% c("lm", "glm")) {
+  if (any(class(m) %in% c("lm", "glm"))) {
     note <- m$converged
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
     note <- summary(m)$optinfo$conv$lme4$messages
