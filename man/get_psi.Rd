@@ -8,7 +8,7 @@ get_psi(
   formula,
   data,
   x_star,
-  group = "species",
+  group = extract_group(formula),
   tc = c("t", "time", "timestep", "ts"),
   theta = seq(0.5, 10, by = 0.5),
   n_lag = attr(stats::terms(formula), "term.labels")[1],
