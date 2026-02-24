@@ -182,7 +182,7 @@ gen_values <- function(seed, fn) {
 #' @export
 
 extract_group <- function(formula) {
-  re_terms <- lme4::findbars(formula)
+  re_terms <- reformulas::findbars(formula)
 
   if (length(re_terms) == 0) return(NULL)
 
