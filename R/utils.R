@@ -188,3 +188,66 @@ extract_group <- function(formula) {
 
   as.character(re_terms[[1]][[3]])
 }
+
+#'
+#' Returns the first grouping factor (text after `|`) in a mixed-effects
+#' model formula. If no random-effect term is present, `NULL` is returned.
+#'
+#' @param formula A model formula potentially containing random effects,
+#'   e.g. `y ~ x + (1 | species)`.
+#'
+#' @return A character string giving the grouping factor name,
+#'   or `NULL` if no random effect is found.
+#'
+#' @export
+
+extract_group <- function(formula) {
+  re_terms <- reformulas::findbars(formula)
+
+  if (length(re_terms) == 0) return(NULL)
+
+  as.character(re_terms[[1]][[3]])
+}
+
+#' Recover the full variance-covariance matrix for unscaled predictors
+#'
+#' Transforms a variance covariance matrix from a model with centered and scaled predictors
+#' back to its original scale, including the intercept and all covariance terms.
+#'
+#' @param v The variance-covariance matrix from the scaled model, where the first row/column is the intercept.
+#' @param means A numeric vector of the means used to center the predictors.
+#' @param stds A numeric vector of the standard deviations used to scale the predictors.
+#'
+#' @return A matrix representing the VCV on the original scale.
+#'
+#' @export
+
+vcov_unscale <- function(v, means, stds) {
+  # Input validation
+  if (!is.numeric(means) || !is.numeric(stds))
+    stop("means and stds must be numeric vectors")
+
+  if (length(means) != length(stds))
+    stop("means and stds must have the same length")
+
+  p <- length(means)
+
+  if (!is.matrix(v) || !isTRUE(all.equal(dim(v), c(p + 1L, p + 1L))))
+    stop("v must be a (length(means)+1) x (length(means)+1) matrix")
+
+  if (!isSymmetric(v, tol = 1e-8))
+    stop("v must be a symmetric matrix")
+
+  if (any(abs(stds) < .Machine$double.eps * 100))
+    stop("stds contains zero or near-zero values; division undefined")
+
+  # Build transformation matrix
+  A <- matrix(0, nrow = p + 1L, ncol = p + 1L)
+  A[1, 1] <- 1
+  A[1, 2:(p + 1)] <- -means / stds
+  A[cbind(2:(p+1), 2:(p+1))] <- 1 / stds
+
+  # Transform and force symmetry to absorb floating-point error
+  result <- A %*% v %*% t(A)
+  (result + t(result)) / 2
+}
