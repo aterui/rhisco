@@ -370,8 +370,6 @@ xeq <- function(formula,
 #'   evaluated via leave-one-out cross-validation to identify the optimal value.
 #' @param n_lag Character string specifying the column name for the lagged population density.
 #' @param nt_lag Character string specifying the column name for the lagged total community density.
-#' @param n_sim Integer. Number of random samples drawn from a multivariate normal
-#'   distribution to propagate parameter uncertainty.
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
 #'
 #' @details
@@ -380,7 +378,7 @@ xeq <- function(formula,
 #' optimal distance-weighting parameter (\eqn{\theta_0}) is selected via leave-one-out
 #' cross-validation using \code{\link{loocv}}. Parameter uncertainty is then propagated
 #' by drawing regression coefficients from the multivariate normal distribution implied
-#' by the fitted model. The proportion of draws yielding negative intrinsic growth rates
+#' by the fitted model. The expected proportion of draws yielding negative intrinsic growth rates
 #' defines \eqn{\psi}.
 #'
 #' @return
@@ -402,11 +400,11 @@ xeq <- function(formula,
 #'
 #' x_star <- 10
 #' get_psi(
-#'   formula = log_r ~ n_lag + nt_lag,
+#'   formula = log_r ~ n_lag + nt_lag + (1 | species),
 #'   data = df,
 #'   x_star = x_star,
 #'   theta = seq(0, 5, by = 0.5),
-#'   model = "lm"
+#'   model = "lmer"
 #' )
 #' }
 #'
@@ -423,7 +421,6 @@ get_psi <- function(formula,
                     theta = seq(0.5, 10, by = 0.5),
                     n_lag = attr(stats::terms(formula), "term.labels")[1],
                     nt_lag = attr(stats::terms(formula), "term.labels")[2],
-                    n_sim = 1000,
                     model = "lm",
                     rescale = TRUE,
                     size = NULL,
@@ -437,6 +434,8 @@ get_psi <- function(formula,
 
   if (is.null(group))
     stop("Missing 'group' argument.")
+
+  re_idx <- !is.null(extract_group(formula))
 
   # reformat data -----------------------------------------------------------
 
@@ -532,52 +531,83 @@ get_psi <- function(formula,
 
     v_beta <- lme4::fixef(m)[v_id]
     m_sigma <- stats::vcov(m)[v_id, v_id]
+    m_ranef <- stats::coef(m)[[group]][v_id]
+    m_rsig <- lme4::VarCorr(m)[[group]]
 
   } else if (any(class(m) %in% c("glmmTMB"))) {
 
     v_beta <- glmmTMB::fixef(m)$cond[v_id]
     m_sigma <- stats::vcov(m)$cond[v_id, v_id]
 
+    if (re_idx) {
+      m_ranef <- stats::coef(m)$cond[[group]][v_id]
+      m_rsig <- lme4::VarCorr(m)$cond[[group]]
+    }
+
   }
 
-  ## get simulated parameters
-  m_sim <- MASS::mvrnorm(n = n_sim,
-                         mu = v_beta,
-                         Sigma = m_sigma)
+  ## back transform parameters
+  v_b0 <- v_beta
+  m_sigma0 <- m_sigma
 
   if (rescale) {
-    m_sim <- apply(m_sim,
-                   MARGIN = 1,
-                   FUN = function(z) {
+    ## slope & intercept on the original scale
+    v_b0[-1] <- v_beta[-1] / v_sigma
+    v_b0[1] <- v_beta[1] - sum(v_b0[-1] * v_mu)
 
-                     ## intercept original
-                     b0 <- z[1] -
-                       (z[2] / v_sigma[n_lag]) * v_mu[n_lag] -
-                       (z[3] / v_sigma[nt_lag]) * v_mu[nt_lag]
+    ## variance-covariance matrix on the original scale
+    m_sigma0 <- vcov_unscale(as.matrix(m_sigma),
+                             means = v_mu,
+                             stds = v_sigma)
 
-                     ## n0's effect original
-                     b1 <- z[2] / v_sigma[n_lag]
-
-                     ## nt0's effect original
-                     b2 <- z[3] / v_sigma[nt_lag]
-
-                     return(c(b0, b1, b2))
-                   }) |>
-      t()
+    dimnames(m_sigma0) <- dimnames(m_sigma)
   }
 
-  ## get a vector of simulated log-scale r
-  cnm <- colnames(m_sim)
+  if (re_idx) {
+
+    m_ranef0 <- m_ranef
+
+    if (rescale) {
+
+      ## random effect on the original scale
+      m_ranef0 <- apply(m_ranef, MARGIN = 1, FUN = function(z) {
+
+        ## scale slopes
+        z[-1] <- z[-1] / v_sigma[c(n_lag, nt_lag)]
+
+        ## scale intercept
+        z[1] <- z[1] - sum(z[-1] * v_mu[c(n_lag, nt_lag)])
+
+        return(z)
+      }) |>
+        t()
+
+    } # rescale
+  } # random effect
+
+  ## get psi
+  ## - 'psi' is averaged after accounting for species differences
+  ## - mean(F(r_i < 0)), where r_i is
+  cnm <- colnames(m_sigma0)
   key <- paste("[Ii]ntercept", nt_lag, sep = "|")
-  v_r <- apply(m_sim[, grepl(key, cnm)],
-               MARGIN = 1,
-               FUN = function(b) {
-                 b[1] + b[2] * x_star
-               })
+  idx <- grepl(key, cnm)
 
-  ## estimate psi
-  psi <- mean(v_r < 0)
+  ## total SD for r
+  sd_r <- sqrt(c(1, x_star) %*% m_sigma0[idx, idx] %*% c(1, x_star)) |>
+    drop()
 
+  if (re_idx) {
+    ## w/ random effects
+    v_mu_r <- drop(m_ranef0[, idx] %*% c(1, x_star))
+    psi <- stats::pnorm(q = 0, mean = v_mu_r, sd = sd_r) |>
+      mean()
+  } else {
+    ## w/o random effects
+    mu_r <- drop(v_b0[idx] %*% c(1, x_star))
+    psi <- stats::pnorm(q = 0, mean = mu_r, sd = sd_r)
+  }
+
+  ## export
   if (any(class(m) %in% c("lm", "glm"))) {
     note <- m$converged
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
@@ -601,3 +631,4 @@ get_psi <- function(formula,
 
   return(psi)
 }
+
