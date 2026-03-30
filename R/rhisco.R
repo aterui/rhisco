@@ -27,6 +27,7 @@
 #' @param seed Integer scalar specifying a random seed.
 #' @param type Type of distance weighting function. Either `"exp"` or `"gaussian"`.
 #' @param method Character string specifying the scaling method. Options are `"mean"` or `"max"`.
+#' @param REML Logical. If \code{TRUE}, Restricted Maximum Likelihood is used for estimation. Defaults to \code{FALSE}.
 #' @param ... Additional arguments passed to the underlying model-fitting function.
 #'
 #' @details
@@ -71,6 +72,7 @@ loocv <- function(formula,
                   seed = NULL,
                   type = "gaussian",
                   method = "max",
+                  REML = FALSE,
                   ...) {
 
   ## define resample
@@ -151,18 +153,21 @@ loocv <- function(formula,
                       lme4::lmer(formula,
                                  data = data,
                                  weights = w,
+                                 REML = REML,
                                  ...)
                     },
                     glmer = function(formula, data, w, ...) {
                       lme4::glmer(formula,
                                   data = data,
                                   weights = w,
+                                  REML = REML,
                                   ...)
                     },
                     glmmTMB = function(formula, data, w, ...) {
                       glmmTMB::glmmTMB(formula,
                                        data = data,
                                        weights = w,
+                                       REML = REML,
                                        ...)
                     },
                     stop("Unsupported model type")
@@ -427,6 +432,7 @@ get_psi <- function(formula,
                     seed = NULL,
                     type = "gaussian",
                     method = "max",
+                    REML = FALSE,
                     ...) {
 
 
@@ -474,6 +480,7 @@ get_psi <- function(formula,
                            seed = seed,
                            type = type,
                            method = method,
+                           REML = REML,
                            ...)
                    })
 
@@ -507,14 +514,17 @@ get_psi <- function(formula,
               lmer = lme4::lmer(formula,
                                 data = data,
                                 weights = w,
+                                REML = REML,
                                 ...),
               glmer = lme4::glmer(formula,
                                   data = data,
                                   weights = w,
+                                  REML = REML,
                                   ...),
               glmmTMB = glmmTMB::glmmTMB(formula,
                                          data = data,
                                          weights = w,
+                                         REML = REML,
                                          ...),
               stop("Unsupported model type")
   )
