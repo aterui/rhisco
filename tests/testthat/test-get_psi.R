@@ -5,21 +5,29 @@ library(tidyverse)
 test_that("get_psi returns numeric psi with correct attributes", {
 
   df <- csim(ts = 10,
-             s = 5) %>%
+             s = 6) %>%
     rename(n = density) %>%
     lag_block(t = "ts",
               index = "species") %>%
-    mutate(y = log(n / n_lag)) %>%
+    mutate(y = log(n / n_lag))
+
+  df_i <- df %>%
     drop_na(y)
 
-  psi <- get_psi(
+  df_t <- df %>%
+    distinct(ts, nt, nt_lag) %>%
+    mutate(y = log(nt / nt_lag)) %>%
+    drop_na(y)
+
+  x_star <- xeq(y ~ nt_lag, data = df_t, theta = 0)
+
+  (psi <- get_psi(
     y ~ n_lag + nt_lag + (1 | species),
-    data = df,
-    x_star = 15,
-    theta = seq(0.5, 2, by = 0.5),
-    n_sim = 50,
+    group = "species",
+    data = df_i,
+    x_star = x_star,
     model = "lmer"
-  )
+  ))
 
   expect_true(is.numeric(psi))
   expect_true(psi >= 0 && psi <= 1)
@@ -31,23 +39,33 @@ test_that("get_psi returns numeric psi with correct attributes", {
 test_that("get_psi works with glm", {
 
   df <- csim(ts = 10,
-             s = 5) %>%
+             s = 6,
+             beta = par.control(dist = "unif",
+                                min = 1,
+                                max = 1)) %>%
     rename(n = density) %>%
     lag_block(t = "ts",
               index = "species") %>%
-    mutate(y = log(n / n_lag)) %>%
+    mutate(y = log(n / n_lag))
+
+  df_i <- df %>%
     drop_na(y)
 
-  psi <- get_psi(
+  df_t <- df %>%
+    distinct(ts, nt, nt_lag) %>%
+    mutate(y = log(nt / nt_lag)) %>%
+    drop_na(y)
+
+  x_star <- xeq(y ~ nt_lag, data = df_t, theta = 0)
+
+  (psi <- get_psi(
     y ~ n_lag + nt_lag,
     group = "species",
-    data = df,
-    x_star = 15,
+    data = df_i,
+    x_star = x_star,
     model = "glm",
-    type = "gaussian",
-    theta = seq(0.5, 2, by = 0.5),
-    n_sim = 50
-  )
+    type = "gaussian"
+  ))
 
   expect_true(is.numeric(psi))
 })
@@ -66,8 +84,7 @@ test_that("get_psi works with lmer/glmer if lme4 installed", {
     y ~ n_lag + nt_lag + (1 | species),
     data = df,
     x_star = 0,
-    model = "lmer",
-    n_sim = 10
+    model = "lmer"
   )
 
   expect_true(is.numeric(psi))
@@ -77,20 +94,28 @@ test_that("get_psi works with lmer/glmer if lme4 installed", {
 test_that("get_psi works with glmmTMB if installed", {
 
   df <- csim(ts = 10,
-             s = 5) %>%
+             s = 6) %>%
     rename(n = density) %>%
     lag_block(t = "ts",
               index = "species") %>%
-    mutate(y = log(n / n_lag)) %>%
+    mutate(y = log(n / n_lag))
+
+  df_i <- df %>%
     drop_na(y)
 
-  psi <- get_psi(
+  df_t <- df %>%
+    distinct(ts, nt, nt_lag) %>%
+    mutate(y = log(nt / nt_lag)) %>%
+    drop_na(y)
+
+  x_star <- xeq(y ~ nt_lag, data = df_t, theta = 0)
+
+  (psi <- get_psi(
     y ~ n_lag + nt_lag + (1 | species),
-    data = df,
-    x_star = 15,
-    model = "glmmTMB",
-    n_sim = 10
-  )
+    data = df_i,
+    x_star = x_star,
+    model = "glmmTMB"
+  ))
 
   expect_true(is.numeric(psi))
 })
