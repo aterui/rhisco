@@ -584,8 +584,8 @@ get_psi <- function(formula,
 
   if (rescale) {
     ## slope & intercept on the original scale
-    v_b0[-1] <- v_beta[-1] / v_sigma
-    v_b0[1] <- v_beta[1] - sum(v_b0[-1] * v_mu)
+    v_b0[-1] <- v_beta[-1] / v_sigma[c(n_lag, nt_lag)]
+    v_b0[1] <- v_beta[1] - sum(v_b0[-1] * v_mu[c(n_lag, nt_lag)])
 
     ## variance-covariance matrix on the original scale
     m_sigma0 <- vcov_unscale(as.matrix(m_sigma),
