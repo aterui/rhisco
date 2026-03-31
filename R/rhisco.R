@@ -210,10 +210,12 @@ loocv <- function(formula,
 
                    ## - normalize raw weights by group
                    df_train$w0 <- w0
-                   df_train$w <- with(df_train,
-                                      ave(w0,
-                                          df_train[[group]],
-                                          FUN = function(x) x / sum(x)))
+                   df_train$w <- with(
+                     df_train,
+                     ave(w0,
+                         df_train[[group]],
+                         FUN = function(x) x / sum(x))
+                   )
 
                    ## fit model
                    lw <- fit_fun(formula,
