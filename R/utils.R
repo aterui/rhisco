@@ -189,26 +189,6 @@ extract_group <- function(formula) {
   as.character(re_terms[[1]][[3]])
 }
 
-#'
-#' Returns the first grouping factor (text after `|`) in a mixed-effects
-#' model formula. If no random-effect term is present, `NULL` is returned.
-#'
-#' @param formula A model formula potentially containing random effects,
-#'   e.g. `y ~ x + (1 | species)`.
-#'
-#' @return A character string giving the grouping factor name,
-#'   or `NULL` if no random effect is found.
-#'
-#' @export
-
-extract_group <- function(formula) {
-  re_terms <- reformulas::findbars(formula)
-
-  if (length(re_terms) == 0) return(NULL)
-
-  as.character(re_terms[[1]][[3]])
-}
-
 #' Recover the full variance-covariance matrix for unscaled predictors
 #'
 #' Transforms a variance covariance matrix from a model with centered and scaled predictors
