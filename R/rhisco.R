@@ -201,11 +201,12 @@ loocv <- function(formula,
                      stats::setNames(c("d", "t", "g"))
 
                    ## - calculate raw weights by group
-                   w0 <- with(df_dist_i,
-                              ave(d,
-                                  g,
-                                  FUN = function(x) dfun(x = x,
-                                                         theta = theta)))
+                   w0 <- with(
+                     df_dist_i,
+                     ave(d,
+                         g,
+                         FUN = function(x) dfun(x = x, theta = theta))
+                   )
 
                    ## - normalize raw weights by group
                    df_train$w0 <- w0
