@@ -160,7 +160,6 @@ loocv <- function(formula,
                       lme4::glmer(formula,
                                   data = data,
                                   weights = w,
-                                  REML = REML,
                                   ...)
                     },
                     glmmTMB = function(formula, data, w, ...) {
@@ -467,22 +466,45 @@ get_psi <- function(formula,
 
   # fit ---------------------------------------------------------------------
 
+  seen <- new.env(parent = emptyenv())
+  seen$warnings <- character(0)
+  seen$messages <- character(0)
+
   ## estimate best theta with leave-one-out cross validation
   v_rmse <- sapply(theta,
                    function(x) {
-                     loocv(formula,
-                           data = data,
-                           theta = x,
-                           model = model,
-                           group = group,
-                           tc = tc,
-                           size = size,
-                           seed = seed,
-                           type = type,
-                           method = method,
-                           REML = REML,
-                           ...)
-                   })
+
+                     withCallingHandlers(
+                       loocv(formula,
+                             data = data,
+                             theta = x,
+                             model = model,
+                             group = group,
+                             tc = tc,
+                             size = size,
+                             seed = seed,
+                             type = type,
+                             method = method,
+                             REML = REML,
+                             ...),
+
+                       warning = function(w) {
+                         msg <- conditionMessage(w)
+                         if (!(msg %in% seen$warnings))
+                           seen$warnings <- c(seen$warnings, msg)
+                         invokeRestart("muffleWarning")
+                       },
+
+                       message = function(m) {
+                         msg <- conditionMessage(m)
+                         if (!(msg %in% seen$messages))
+                           seen$messages <- c(seen$messages, msg)
+                         invokeRestart("muffleMessage")
+                       }
+
+                     ) # withCallingHandlers
+
+                   }) # sapply
 
   names(v_rmse) <- theta
   theta0 <- theta[which.min(v_rmse)]
@@ -519,7 +541,6 @@ get_psi <- function(formula,
               glmer = lme4::glmer(formula,
                                   data = data,
                                   weights = w,
-                                  REML = REML,
                                   ...),
               glmmTMB = glmmTMB::glmmTMB(formula,
                                          data = data,
