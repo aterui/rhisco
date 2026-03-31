@@ -1,7 +1,7 @@
 Package: rhisco
 Type: Package
 Title: Historical Contingency
-Version: 0.1.1
+Version: 0.2.0
 Authors@R: c(
     person(
       "Akira", "Terui",
@@ -16,7 +16,6 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Imports:
-  MASS,
   lme4,
   reformulas,
   glmmTMB,
@@ -26,4 +25,4 @@ Suggests:
   testthat (>= 3.0.0),
   tidyverse
 Config/testthat/edition: 3
-  
+Depends: R (>= 4.1.0)  

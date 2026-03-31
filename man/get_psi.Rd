@@ -13,13 +13,13 @@ get_psi(
   theta = seq(0.5, 10, by = 0.5),
   n_lag = attr(stats::terms(formula), "term.labels")[1],
   nt_lag = attr(stats::terms(formula), "term.labels")[2],
-  n_sim = 1000,
   model = "lm",
   rescale = TRUE,
   size = NULL,
   seed = NULL,
   type = "gaussian",
   method = "max",
+  REML = FALSE,
   ...
 )
 }
@@ -49,9 +49,6 @@ evaluated via leave-one-out cross-validation to identify the optimal value.}
 
 \item{nt_lag}{Character string specifying the column name for the lagged total community density.}
 
-\item{n_sim}{Integer. Number of random samples drawn from a multivariate normal
-distribution to propagate parameter uncertainty.}
-
 \item{model}{Character string specifying the model type to fit. Must be one of
 \code{"lm"}, \code{"glm"}, \code{"lmer"}, \code{"glmer"}, or \code{"glmmTMB"}.}
 
@@ -68,6 +65,8 @@ representative temporal coverage. If \code{NULL} (default), all timesteps are us
 \item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
 \item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
+
+\item{REML}{Logical. If \code{TRUE}, Restricted Maximum Likelihood is used for estimation. Defaults to \code{FALSE}.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
@@ -91,7 +90,7 @@ in the intrinsic growth rate at the estimated equilibrium density (\eqn{x^*}). T
 optimal distance-weighting parameter (\eqn{\theta_0}) is selected via leave-one-out
 cross-validation using \code{\link{loocv}}. Parameter uncertainty is then propagated
 by drawing regression coefficients from the multivariate normal distribution implied
-by the fitted model. The proportion of draws yielding negative intrinsic growth rates
+by the fitted model. The expected proportion of draws yielding negative intrinsic growth rates
 defines \eqn{\psi}.
 }
 \examples{
@@ -105,11 +104,11 @@ df <- data.frame(
 
 x_star <- 10
 get_psi(
-  formula = log_r ~ n_lag + nt_lag,
+  formula = log_r ~ n_lag + nt_lag + (1 | species),
   data = df,
   x_star = x_star,
   theta = seq(0, 5, by = 0.5),
-  model = "lm"
+  model = "lmer"
 )
 }
 

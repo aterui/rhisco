@@ -15,6 +15,7 @@ loocv(
   seed = NULL,
   type = "gaussian",
   method = "max",
+  REML = FALSE,
   ...
 )
 }
@@ -50,6 +51,8 @@ representative temporal coverage. If \code{NULL} (default), all timesteps are us
 \item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
 \item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
+
+\item{REML}{Logical. If \code{TRUE}, Restricted Maximum Likelihood is used for estimation. Defaults to \code{FALSE}.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
