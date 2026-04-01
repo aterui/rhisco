@@ -571,29 +571,28 @@ get_psi <- function(formula,
   if (any(class(m) %in% c("lm", "glm"))) {
 
     v_beta <- stats::coef(m)[v_id]
-    m_sigma <- stats::vcov(m)[v_id, v_id] |>
-      data.matrix()
+    m_sigma <- stats::vcov(m)[v_id, v_id]
 
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
 
     v_beta <- lme4::fixef(m)[v_id]
-    m_sigma <- stats::vcov(m)[v_id, v_id] |>
-      data.matrix()
-    m_ranef <- stats::coef(m)[[group]][v_id] |>
-      data.matrix()
+    m_sigma <- stats::vcov(m)[v_id, v_id]
+    m_ranef <- stats::coef(m)[[group]][v_id]
 
   } else if (any(class(m) %in% c("glmmTMB"))) {
 
     v_beta <- glmmTMB::fixef(m)$cond[v_id]
-    m_sigma <- stats::vcov(m)$cond[v_id, v_id] |>
-      data.matrix()
+    m_sigma <- stats::vcov(m)$cond[v_id, v_id]
 
     if (re_idx) {
-      m_ranef <- stats::coef(m)$cond[[group]][v_id] |>
-        data.matrix()
+      m_ranef <- stats::coef(m)$cond[[group]][v_id]
     }
 
   }
+
+  ## convert class to base matrix
+  m_sigma <- data.matrix(m_sigma)
+  m_ranef <- data.matrix(m_ranef)
 
   ## back transform parameters
   v_b0 <- v_beta
