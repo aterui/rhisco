@@ -26,11 +26,24 @@ test_that("get_psi returns numeric psi with correct attributes", {
     group = "species",
     data = df_i,
     x_star = x_star,
-    model = "lmer"
+    model = "lmer",
+    rescale = TRUE,
+    theta = 0
+  ))
+
+  (psi0 <- get_psi(
+    y ~ n_lag + nt_lag + (1 | species),
+    group = "species",
+    data = df_i,
+    x_star = x_star,
+    model = "lmer",
+    rescale = FALSE,
+    theta = 0
   ))
 
   expect_true(is.numeric(psi))
   expect_true(psi >= 0 && psi <= 1)
+  expect_equal(c(psi), c(psi0))
   expect_true(!is.null(attr(psi, "theta")))
   expect_true(!is.null(attr(psi, "rmse")))
   expect_true(!is.null(attr(psi, "message")))
