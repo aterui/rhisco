@@ -599,7 +599,7 @@ get_psi <- function(formula,
 
   if (re_idx) {
 
-    m_ranef0 <- m_ranef
+    m_ranef0 <- data.matrix(m_ranef)
 
     if (rescale) {
 
@@ -628,6 +628,7 @@ get_psi <- function(formula,
 
   ## total SD for r
   sd_r <- sqrt(c(1, x_star) %*% m_sigma0[idx, idx] %*% c(1, x_star)) |>
+    data.matrix() |>
     drop()
 
   if (re_idx) {
