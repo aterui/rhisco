@@ -20,6 +20,7 @@ get_psi(
   type = "gaussian",
   method = "max",
   REML = FALSE,
+  K = 2L,
   ...
 )
 }
@@ -68,6 +69,8 @@ representative temporal coverage. If \code{NULL} (default), all timesteps are us
 
 \item{REML}{Logical. If \code{TRUE}, Restricted Maximum Likelihood is used for estimation. Defaults to \code{FALSE}.}
 
+\item{K}{Integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.}
+
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
 \value{
@@ -88,13 +91,12 @@ given parameter uncertainty in a localized regression model.
 This function quantifies historical contingency (\eqn{\psi}) by evaluating uncertainty
 in the intrinsic growth rate at the estimated equilibrium density (\eqn{x^*}). The
 optimal distance-weighting parameter (\eqn{\theta_0}) is selected via leave-one-out
-cross-validation using \code{\link{loocv}}. Parameter uncertainty is then propagated
-by drawing regression coefficients from the multivariate normal distribution implied
-by the fitted model. The expected proportion of draws yielding negative intrinsic growth rates
-defines \eqn{\psi}.
+cross-validation using \code{\link{loocv}}.
 }
 \examples{
 \dontrun{
+## this is fake data with no ecological meaning
+## users must prepare the data appropriately
 df <- data.frame(
   log_r = runif(50, -1, 1),
   n_lag = rnorm(50, 10, 2),

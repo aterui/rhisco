@@ -1,7 +1,7 @@
 Package: rhisco
 Type: Package
 Title: Historical Contingency
-Version: 0.2.1
+Version: 0.2.2
 Authors@R: c(
     person(
       "Akira", "Terui",
@@ -20,7 +20,8 @@ Imports:
   reformulas,
   glmmTMB,
   dplyr,
-  withr
+  withr,
+  poibin
 Suggests: 
   testthat (>= 3.0.0),
   tidyverse
