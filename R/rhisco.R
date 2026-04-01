@@ -378,7 +378,7 @@ xeq <- function(formula,
 #' @param n_lag Character string specifying the column name for the lagged population density.
 #' @param nt_lag Character string specifying the column name for the lagged total community density.
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
-#' @param K Integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.
+#' @param K Positive integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.
 #'
 #' @details
 #' This function quantifies historical contingency (\eqn{\psi}) by evaluating uncertainty
@@ -450,8 +450,8 @@ get_psi <- function(formula,
   nsp <- length(unique(data[[group]]))
 
   ## check K
-  if (!is.numeric(K) || length(K) != 1 || is.na(K) || floor(K) != K || K < 0) {
-    stop("`K` must be a non-negative integer (e.g., K = 2L or K = 2).")
+  if (!is.numeric(K) || length(K) != 1 || is.na(K) || floor(K) != K || K < 1) {
+    stop("`K` must be a positive integer (e.g., K = 2L or K = 2).")
   }
   K <- as.integer(K)
 

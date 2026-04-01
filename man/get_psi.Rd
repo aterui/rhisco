@@ -69,7 +69,7 @@ representative temporal coverage. If \code{NULL} (default), all timesteps are us
 
 \item{REML}{Logical. If \code{TRUE}, Restricted Maximum Likelihood is used for estimation. Defaults to \code{FALSE}.}
 
-\item{K}{Integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.}
+\item{K}{Positive integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
