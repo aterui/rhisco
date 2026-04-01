@@ -378,15 +378,13 @@ xeq <- function(formula,
 #' @param n_lag Character string specifying the column name for the lagged population density.
 #' @param nt_lag Character string specifying the column name for the lagged total community density.
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
+#' @param K Integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.
 #'
 #' @details
 #' This function quantifies historical contingency (\eqn{\psi}) by evaluating uncertainty
 #' in the intrinsic growth rate at the estimated equilibrium density (\eqn{x^*}). The
 #' optimal distance-weighting parameter (\eqn{\theta_0}) is selected via leave-one-out
-#' cross-validation using \code{\link{loocv}}. Parameter uncertainty is then propagated
-#' by drawing regression coefficients from the multivariate normal distribution implied
-#' by the fitted model. The expected proportion of draws yielding negative intrinsic growth rates
-#' defines \eqn{\psi}.
+#' cross-validation using \code{\link{loocv}}.
 #'
 #' @return
 #' A numeric value representing historical contingency (\eqn{\psi}). The returned object
@@ -398,6 +396,8 @@ xeq <- function(formula,
 #'
 #' @examples
 #' \dontrun{
+#' ## this is fake data with no ecological meaning
+#' ## users must prepare the data appropriately
 #' df <- data.frame(
 #'   log_r = runif(50, -1, 1),
 #'   n_lag = rnorm(50, 10, 2),
@@ -435,15 +435,25 @@ get_psi <- function(formula,
                     type = "gaussian",
                     method = "max",
                     REML = FALSE,
+                    K = 2L,
                     ...) {
 
-
-  # check group input -------------------------------------------------------
+  # check input -------------------------------------------------------------
 
   if (is.null(group))
     stop("Missing 'group' argument.")
 
+  ## do random effects exist?
   re_idx <- !is.null(extract_group(formula))
+
+  ## number of species
+  nsp <- length(unique(data[[group]]))
+
+  ## check K
+  if (!is.numeric(K) || length(K) != 1 || is.na(K) || floor(K) != K || K < 0) {
+    stop("`K` must be a non-negative integer (e.g., K = 2L or K = 2).")
+  }
+  K <- as.integer(K)
 
   # reformat data -----------------------------------------------------------
 
@@ -518,9 +528,11 @@ get_psi <- function(formula,
 
   ## get scaled weight
   ## - get raw weights by group
-  w0 <- stats::ave(data[["d"]],
-                   data[[group]],
-                   FUN = function(x) dfun(x, theta = theta0))
+  w0 <- stats::ave(
+    data[["d"]],
+    data[[group]],
+    FUN = function(x) dfun(x, theta = theta0)
+  )
 
   ## - get normalized weights by group
   data$w <- stats::ave(w0,
@@ -559,23 +571,26 @@ get_psi <- function(formula,
   if (any(class(m) %in% c("lm", "glm"))) {
 
     v_beta <- stats::coef(m)[v_id]
-    m_sigma <- stats::vcov(m)[v_id, v_id]
+    m_sigma <- stats::vcov(m)[v_id, v_id] |>
+      data.matrix()
 
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
 
     v_beta <- lme4::fixef(m)[v_id]
-    m_sigma <- stats::vcov(m)[v_id, v_id]
-    m_ranef <- stats::coef(m)[[group]][v_id]
-    m_rsig <- lme4::VarCorr(m)[[group]]
+    m_sigma <- stats::vcov(m)[v_id, v_id] |>
+      data.matrix()
+    m_ranef <- stats::coef(m)[[group]][v_id] |>
+      data.matrix()
 
   } else if (any(class(m) %in% c("glmmTMB"))) {
 
     v_beta <- glmmTMB::fixef(m)$cond[v_id]
-    m_sigma <- stats::vcov(m)$cond[v_id, v_id]
+    m_sigma <- stats::vcov(m)$cond[v_id, v_id] |>
+      data.matrix()
 
     if (re_idx) {
-      m_ranef <- stats::coef(m)$cond[[group]][v_id]
-      m_rsig <- lme4::VarCorr(m)$cond[[group]]
+      m_ranef <- stats::coef(m)$cond[[group]][v_id] |>
+        data.matrix()
     }
 
   }
@@ -590,7 +605,7 @@ get_psi <- function(formula,
     v_b0[1] <- v_beta[1] - sum(v_b0[-1] * v_mu[c(n_lag, nt_lag)])
 
     ## variance-covariance matrix on the original scale
-    m_sigma0 <- vcov_unscale(as.matrix(m_sigma),
+    m_sigma0 <- vcov_unscale(m_sigma,
                              means = v_mu,
                              stds = v_sigma)
 
@@ -599,7 +614,9 @@ get_psi <- function(formula,
 
   if (re_idx) {
 
-    m_ranef0 <- data.matrix(m_ranef)
+    # m_ranef is not a base matrix
+    # coerce into a base matrix
+    m_ranef0 <- m_ranef
 
     if (rescale) {
 
@@ -627,19 +644,20 @@ get_psi <- function(formula,
   idx <- grepl(key, cnm)
 
   ## total SD for r
-  sd_r <- sqrt(c(1, x_star) %*% m_sigma0[idx, idx] %*% c(1, x_star)) |>
-    data.matrix() |>
+  m_x_star <- matrix(c(1, x_star), ncol = 1, nrow = 2)
+  sd_r <- sqrt(t(m_x_star) %*% m_sigma0[idx, idx] %*% m_x_star) |>
     drop()
 
   if (re_idx) {
     ## w/ random effects
     v_mu_r <- drop(m_ranef0[, idx] %*% c(1, x_star))
-    psi <- stats::pnorm(q = 0, mean = v_mu_r, sd = sd_r) |>
-      mean()
+    v_p <- stats::pnorm(q = 0, mean = v_mu_r, sd = sd_r)
+    psi <- 1 - poibin::ppoibin(kk = K - 1, pp = v_p)
   } else {
     ## w/o random effects
     mu_r <- drop(v_b0[idx] %*% c(1, x_star))
-    psi <- stats::pnorm(q = 0, mean = mu_r, sd = sd_r)
+    p <- stats::pnorm(q = 0, mean = mu_r, sd = sd_r)
+    psi <- 1 - poibin::ppoibin(kk = K - 1, pp = rep(p, nsp))
   }
 
   ## export
