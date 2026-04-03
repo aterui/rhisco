@@ -455,14 +455,23 @@ get_psi <- function(formula,
   }
   K <- as.integer(K)
 
-  # reformat data -----------------------------------------------------------
+  ## number of terms, term-name mismatch?
+  v_terms <- reformulas::nobars(formula) |>
+    stats::terms() |>
+    attr("term.labels")
 
-  ## Euclidean distance to the point of approximation
-  data[["d"]] <- sqrt(data[[n_lag]]^2 + (data[[nt_lag]] - x_star)^2)
+  if (length(v_terms) != 2)
+    stop(paste(length(v_terms), "fixed effects detected. The number of predictors must be two."))
+
+  if (length(intersect(v_terms, c(n_lag, nt_lag))) != 2)
+    stop(paste(n_lag, "and/or", nt_lag, "are not found in the formula."))
+
+  # reformat data -----------------------------------------------------------
 
   ## mean and sd
   v_mu <- sapply(data[, c(n_lag, nt_lag)], mean)
   v_sigma <- sapply(data[, c(n_lag, nt_lag)], stats::sd)
+  x0 <- 0
 
   ## scaled predictors
   if (rescale) {
@@ -475,7 +484,20 @@ get_psi <- function(formula,
                             center = TRUE,
                             scale = TRUE) |>
       c()
+
+    x0 <- -v_mu[n_lag] / v_sigma[n_lag]
+    x_star <- (x_star - v_mu[nt_lag]) / v_sigma[nt_lag]
   }
+
+  ## Euclidean distance to the point of approximation
+  data[["d"]] <- sqrt((data[[n_lag]] - x0)^2 + (data[[nt_lag]] - x_star)^2)
+
+  ## a vector of constants; assigned as matrix
+  v_id <- c("(Intercept)", n_lag, nt_lag)
+  m_const <- matrix(c(1, x0, x_star),
+                    nrow = 3,
+                    ncol = 1)
+  rownames(m_const) <- v_id
 
   # fit ---------------------------------------------------------------------
 
@@ -566,98 +588,125 @@ get_psi <- function(formula,
   )
 
   ## mean and var-covar matrix for simulated parameters
-  v_id <- c("(Intercept)", n_lag, nt_lag)
-
   if (any(class(m) %in% c("lm", "glm"))) {
 
-    v_beta <- stats::coef(m)[v_id]
+    m_beta <- matrix(stats::coef(m)[v_id],
+                     nrow = length(v_id),
+                     ncol = 1)
     m_sigma <- stats::vcov(m)[v_id, v_id]
 
   } else if (any(class(m) %in% c("lmerMod", "glmerMod"))) {
 
-    v_beta <- lme4::fixef(m)[v_id]
+    m_beta <- matrix(lme4::fixef(m)[v_id],
+                     nrow = length(v_id),
+                     ncol = 1)
     m_sigma <- stats::vcov(m)[v_id, v_id]
-    m_ranef <- stats::coef(m)[[group]][v_id]
+    m_rvar <- lme4::VarCorr(m)[[group]]
+    #m_ranef <- stats::coef(m)[[group]][v_id]
 
   } else if (any(class(m) %in% c("glmmTMB"))) {
 
-    v_beta <- glmmTMB::fixef(m)$cond[v_id]
+    m_beta <- matrix(glmmTMB::fixef(m)$cond[v_id],
+                     nrow = length(v_id),
+                     ncol = 1)
     m_sigma <- stats::vcov(m)$cond[v_id, v_id]
 
     if (re_idx) {
-      m_ranef <- stats::coef(m)$cond[[group]][v_id]
+      m_rvar <- lme4::VarCorr(m)$cond[[group]]
+      #m_ranef <- stats::coef(m)$cond[[group]][v_id]
     }
 
   }
 
-  ## convert class to base matrix
-  m_sigma <- data.matrix(m_sigma)
-  m_ranef <- data.matrix(m_ranef)
+  ## mean r
+  mu_r <- drop(t(m_const) %*% m_beta)
 
-  ## back transform parameters
-  v_b0 <- v_beta
-  m_sigma0 <- m_sigma
+  ## sd r, fixed effect variance + random effect variance [species]
+  ## - fixed terms
+  m_sigma <- data.matrix(m_sigma[v_id, v_id])
+  var_x <- drop(t(m_const) %*% m_sigma %*% m_const)
 
-  if (rescale) {
-    ## slope & intercept on the original scale
-    v_b0[-1] <- v_beta[-1] / v_sigma[c(n_lag, nt_lag)]
-    v_b0[1] <- v_beta[1] - sum(v_b0[-1] * v_mu[c(n_lag, nt_lag)])
-
-    ## variance-covariance matrix on the original scale
-    m_sigma0 <- vcov_unscale(m_sigma,
-                             means = v_mu,
-                             stds = v_sigma)
-
-    dimnames(m_sigma0) <- dimnames(m_sigma)
-  }
-
+  ## - random terms
   if (re_idx) {
-
-    # m_ranef is not a base matrix
-    # coerce into a base matrix
-    m_ranef0 <- m_ranef
-
-    if (rescale) {
-
-      ## random effect on the original scale
-      m_ranef0 <- apply(m_ranef, MARGIN = 1, FUN = function(z) {
-
-        ## scale slopes
-        z[-1] <- z[-1] / v_sigma[c(n_lag, nt_lag)]
-
-        ## scale intercept
-        z[1] <- z[1] - sum(z[-1] * v_mu[c(n_lag, nt_lag)])
-
-        return(z)
-      }) |>
-        t()
-
-    } # rescale
-  } # random effect
-
-  ## get psi
-  ## - 'psi' is averaged after accounting for species differences
-  ## - mean(F(r_i < 0)), where r_i is
-  cnm <- colnames(m_sigma0)
-  key <- paste("[Ii]ntercept", nt_lag, sep = "|")
-  idx <- grepl(key, cnm)
-
-  ## total SD for r
-  m_x_star <- matrix(c(1, x_star), ncol = 1, nrow = 2)
-  sd_r <- sqrt(t(m_x_star) %*% m_sigma0[idx, idx] %*% m_x_star) |>
-    drop()
-
-  if (re_idx) {
-    ## w/ random effects
-    v_mu_r <- drop(m_ranef0[, idx] %*% c(1, x_star))
-    v_p <- stats::pnorm(q = 0, mean = v_mu_r, sd = sd_r)
-    psi <- 1 - poibin::ppoibin(kk = K - 1, pp = v_p)
+    re_terms <- intersect(v_id, rownames(m_rvar))
+    m_const_re <- m_const[match(re_terms, v_id), , drop = FALSE]
+    var_r <- drop(t(m_const_re) %*% m_rvar[re_terms, re_terms] %*% m_const_re)
   } else {
-    ## w/o random effects
-    mu_r <- drop(v_b0[idx] %*% c(1, x_star))
-    p <- stats::pnorm(q = 0, mean = mu_r, sd = sd_r)
-    psi <- 1 - poibin::ppoibin(kk = K - 1, pp = rep(p, nsp))
+    var_r <- 0
   }
+
+  ## - total SD
+  sd_tot <- sqrt(var_x + var_r)
+
+  p <- pnorm(0, mean = mu_r, sd = sd_tot)
+  psi <- 1 - pbinom(q = 1, size = nsp, prob = p)
+
+  # m_ranef <- data.matrix(m_ranef)
+  #
+  # ## back transform parameters
+  # v_b0 <- v_beta
+  # m_sigma0 <- m_sigma
+  #
+  # if (rescale) {
+  #   ## slope & intercept on the original scale
+  #   v_b0[-1] <- v_beta[-1] / v_sigma[c(n_lag, nt_lag)]
+  #   v_b0[1] <- v_beta[1] - sum(v_b0[-1] * v_mu[c(n_lag, nt_lag)])
+  #
+  #   ## variance-covariance matrix on the original scale
+  #   m_sigma0 <- vcov_unscale(m_sigma,
+  #                            means = v_mu,
+  #                            stds = v_sigma)
+  #
+  #   dimnames(m_sigma0) <- dimnames(m_sigma)
+  # }
+  #
+  # if (re_idx) {
+  #
+  #   # m_ranef is not a base matrix
+  #   # coerce into a base matrix
+  #   m_ranef0 <- m_ranef
+  #
+  #   if (rescale) {
+  #
+  #     ## random effect on the original scale
+  #     m_ranef0 <- apply(m_ranef, MARGIN = 1, FUN = function(z) {
+  #
+  #       ## scale slopes
+  #       z[-1] <- z[-1] / v_sigma[c(n_lag, nt_lag)]
+  #
+  #       ## scale intercept
+  #       z[1] <- z[1] - sum(z[-1] * v_mu[c(n_lag, nt_lag)])
+  #
+  #       return(z)
+  #     }) |>
+  #       t()
+  #
+  #   } # rescale
+  # } # random effect
+  #
+  # ## get psi
+  # ## - 'psi' is averaged after accounting for species differences
+  # ## - mean(F(r_i < 0)), where r_i is
+  # cnm <- colnames(m_sigma0)
+  # key <- paste("[Ii]ntercept", nt_lag, sep = "|")
+  # idx <- grepl(key, cnm)
+  #
+  # ## total SD for r
+  # m_x_star <- matrix(c(1, x_star), ncol = 1, nrow = 2)
+  # sd_r <- sqrt(t(m_x_star) %*% m_sigma0[idx, idx] %*% m_x_star) |>
+  #   drop()
+
+  # if (re_idx) {
+  #   ## w/ random effects
+  #   v_mu_r <- drop(m_ranef0[, idx] %*% c(1, x_star))
+  #   v_p <- stats::pnorm(q = 0, mean = v_mu_r, sd = sd_r)
+  #   psi <- 1 - poibin::ppoibin(kk = K - 1, pp = v_p)
+  # } else {
+  #   ## w/o random effects
+  #   mu_r <- drop(v_b0[idx] %*% c(1, x_star))
+  #   p <- stats::pnorm(q = 0, mean = mu_r, sd = sd_r)
+  #   psi <- 1 - poibin::ppoibin(kk = K - 1, pp = rep(p, nsp))
+  # }
 
   ## export
   if (any(class(m) %in% c("lm", "glm"))) {
@@ -680,6 +729,7 @@ get_psi <- function(formula,
   attr(psi, "message") <- note
   attr(psi, "theta") <- theta0
   attr(psi, "rmse") <- v_rmse
+  attr(psi, "sd") <- c(sd_mu = sqrt(var_x), sd_r = sqrt(var_r))
 
   return(psi)
 }
