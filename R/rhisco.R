@@ -639,7 +639,7 @@ get_psi <- function(formula,
   sd_tot <- sqrt(var_x + var_r)
 
   p <- pnorm(0, mean = mu_r, sd = sd_tot)
-  psi <- 1 - pbinom(q = 1, size = nsp, prob = p)
+  psi <- 1 - pbinom(q = K - 1, size = nsp, prob = p)
 
   # m_ranef <- data.matrix(m_ranef)
   #
