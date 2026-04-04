@@ -18,9 +18,9 @@ get_psi(
   size = NULL,
   seed = NULL,
   type = "gaussian",
-  method = "max",
+  dist.method = "max",
+  psi.method = c("marginal", "mean"),
   REML = FALSE,
-  K = 2L,
   ...
 )
 }
@@ -65,11 +65,20 @@ representative temporal coverage. If \code{NULL} (default), all timesteps are us
 
 \item{type}{Type of distance weighting function. Either \code{"exp"} or \code{"gaussian"}.}
 
-\item{method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
+\item{dist.method}{Character string specifying the scaling method. Options are \code{"mean"} or \code{"max"}.}
+
+\item{psi.method}{Character string specifying how species-level variation is
+incorporated into \eqn{\psi}. Options are \code{"marginal"} or \code{"mean"}.
+\code{"marginal"} integrates over species-level variation in the intercept
+(i.e., \code{var_r} from the random effect) when computing the probability
+that the invasion growth rate is negative, so that \eqn{\psi} reflects both
+estimation uncertainty and genuine between-species variation.
+\code{"mean"} ignores species-level variation and computes \eqn{\psi} based
+solely on the mean invasion growth rate and its estimation
+uncertainty, equivalent to asking whether the average species
+cannot invade. Defaults to \code{"marginal"}.}
 
 \item{REML}{Logical. If \code{TRUE}, Restricted Maximum Likelihood is used for estimation. Defaults to \code{FALSE}.}
-
-\item{K}{Positive integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.}
 
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
