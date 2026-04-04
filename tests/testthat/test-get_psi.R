@@ -5,7 +5,15 @@ library(tidyverse)
 test_that("get_psi returns numeric psi with correct attributes", {
 
   df <- csim(ts = 10,
-             s = 6) %>%
+             s = 30,
+             r = par.control(dist = "unif",
+                             min = 0.5,
+                             max = 0.5),
+             alpha = par.control(dist = "constant",
+                                 mu = 1),
+             beta = par.control(dist = "unif",
+                                min = 1,
+                                max = 1)) %>%
     rename(n = density) %>%
     lag_block(t = "ts",
               index = "species") %>%
