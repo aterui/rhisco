@@ -663,7 +663,7 @@ get_psi <- function(formula,
   sd_tot <- sqrt(var_x + var_r)
 
   ## psi, integrating species effects out
-  psi <- pnorm(0, mean = mu_r, sd = sd_tot)
+  psi <- stats::pnorm(0, mean = mu_r, sd = sd_tot)
 
   # m_ranef <- data.matrix(m_ranef)
   #
