@@ -466,11 +466,11 @@ get_psi <- function(formula,
   ## number of species
   nsp <- length(unique(data[[group]]))
 
-  ## check K
-  if (!is.numeric(K) || length(K) != 1 || is.na(K) || floor(K) != K || K < 1) {
-    stop("`K` must be a positive integer (e.g., K = 2L or K = 2).")
-  }
-  K <- as.integer(K)
+  # ## check K
+  # if (!is.numeric(K) || length(K) != 1 || is.na(K) || floor(K) != K || K < 1) {
+  #   stop("`K` must be a positive integer (e.g., K = 2L or K = 2).")
+  # }
+  # K <- as.integer(K)
 
   ## number of terms, term-name mismatch?
   v_terms <- reformulas::nobars(formula) |>
