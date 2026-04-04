@@ -378,7 +378,17 @@ xeq <- function(formula,
 #' @param n_lag Character string specifying the column name for the lagged population density.
 #' @param nt_lag Character string specifying the column name for the lagged total community density.
 #' @param rescale Logical. If \code{TRUE}, predictor variables are standardized to mean 0 and SD 1.
-#' @param K Positive integer. The number of non-invasible species used to define (\eqn{\psi}). Defaults to 2.
+#' @param dist.method Character string specifying the scaling method. Options are `"mean"` or `"max"`.
+#' @param psi.method Character string specifying how species-level variation is
+#'   incorporated into \eqn{\psi}. Options are \code{"marginal"} or \code{"mean"}.
+#'   \code{"marginal"} integrates over species-level variation in the intercept
+#'   (i.e., \code{var_r} from the random effect) when computing the probability
+#'   that the invasion growth rate is negative, so that \eqn{\psi} reflects both
+#'   estimation uncertainty and genuine between-species variation.
+#'   \code{"mean"} ignores species-level variation and computes \eqn{\psi} based
+#'   solely on the mean invasion growth rate and its estimation
+#'   uncertainty, equivalent to asking whether the average species
+#'   cannot invade. Defaults to \code{"marginal"}.
 #'
 #' @details
 #' This function quantifies historical contingency (\eqn{\psi}) by evaluating uncertainty
@@ -433,15 +443,22 @@ get_psi <- function(formula,
                     size = NULL,
                     seed = NULL,
                     type = "gaussian",
-                    method = "max",
+                    dist.method = "max",
+                    psi.method = c("marginal", "mean"),
                     REML = FALSE,
-                    K = 2L,
                     ...) {
 
   # check input -------------------------------------------------------------
 
+  ## psi.method matching
+  psi.method <- match.arg(psi.method)
+
+  ## random effect arguments
   if (is.null(group))
     stop("Missing 'group' argument.")
+
+  ## check if the random effect is single and intercept only
+  re_check(formula)
 
   ## do random effects exist?
   re_idx <- !is.null(extract_group(formula))
@@ -519,7 +536,7 @@ get_psi <- function(formula,
                              size = size,
                              seed = seed,
                              type = type,
-                             method = method,
+                             method = dist.method,
                              REML = REML,
                              ...),
 
@@ -546,7 +563,7 @@ get_psi <- function(formula,
 
   ## define dfun
   dfun <- get_dfun(type = type,
-                   method = method)
+                   method = dist.method)
 
   ## get scaled weight
   ## - get raw weights by group
@@ -627,19 +644,26 @@ get_psi <- function(formula,
   var_x <- drop(t(m_const) %*% m_sigma %*% m_const)
 
   ## - random terms
-  if (re_idx) {
+  if (!re_idx) {
+    var_r0 <- 0
+    psi.method <- "mean"
+    message("No random effect in the model; psi.method has been set to 'mean' automatically.")
+  } else {
+    # select random-effect terms present in the model
     re_terms <- intersect(v_id, rownames(m_rvar))
     m_const_re <- m_const[match(re_terms, v_id), , drop = FALSE]
-    var_r <- drop(t(m_const_re) %*% m_rvar[re_terms, re_terms] %*% m_const_re)
-  } else {
-    var_r <- 0
+
+    # compute variance contribution from random effects
+    var_r0 <- drop(t(m_const_re) %*% m_rvar[re_terms, re_terms] %*% m_const_re)
   }
+
+  var_r <- if (psi.method == "mean") 0 else var_r0
 
   ## - total SD
   sd_tot <- sqrt(var_x + var_r)
 
-  p <- pnorm(0, mean = mu_r, sd = sd_tot)
-  psi <- 1 - pbinom(q = K - 1, size = nsp, prob = p)
+  ## psi, integrating species effects out
+  psi <- pnorm(0, mean = mu_r, sd = sd_tot)
 
   # m_ranef <- data.matrix(m_ranef)
   #
@@ -729,7 +753,8 @@ get_psi <- function(formula,
   attr(psi, "message") <- note
   attr(psi, "theta") <- theta0
   attr(psi, "rmse") <- v_rmse
-  attr(psi, "sd") <- c(sd_mu = sqrt(var_x), sd_r = sqrt(var_r))
+  attr(psi, "sd") <- c(sd_mu = sqrt(var_x),
+                       sd_r = if (re_idx) sqrt(var_r0) else NA)
 
   return(psi)
 }
