@@ -264,3 +264,66 @@ re_check <- function(formula) {
 
   invisible(NULL)
 }
+
+#' Extract model parameters
+#'
+#' @param m Fitted model object (\code{lm}, \code{glm}, \code{lmerMod},
+#'   \code{glmerMod}, or \code{glmmTMB}).
+#' @param idx Indices or names of fixed effects to extract.
+#' @param re Logical; return random-effect variance if available.
+#'
+#' @return List with \code{beta} (estimates), \code{sigma} (vcov matrix),
+#'   and \code{rvar} (random-effect variance or \code{NULL}).
+#'
+#' @export
+
+get_params <- function(m, idx, re = TRUE) {
+
+  # initialize
+  m_beta <- m_sigma <- m_rvar <- NULL
+
+  ## lm / glm
+  if (inherits(m, c("lm", "glm"))) {
+
+    m_beta <- matrix(stats::coef(m)[idx],
+                     nrow = length(idx),
+                     ncol = 1)
+    m_sigma <- stats::vcov(m)[idx, idx, drop = FALSE]
+
+    ## lmer / glmer
+  } else if (inherits(m, c("lmerMod", "glmerMod"))) {
+
+    m_beta <- matrix(lme4::fixef(m)[idx],
+                     nrow = length(idx),
+                     ncol = 1)
+    m_sigma <- stats::vcov(m)[idx, idx, drop = FALSE]
+
+    if (re) {
+      group <- names(lme4::VarCorr(m))
+      m_rvar <- lme4::VarCorr(m)[[group]]
+    }
+
+    ## glmmTMB
+  } else if (inherits(m, "glmmTMB")) {
+
+    m_beta <- matrix(glmmTMB::fixef(m)$cond[idx],
+                     nrow = length(idx),
+                     ncol = 1)
+
+    m_sigma <- stats::vcov(m)$cond[idx, idx, drop = FALSE]
+
+    if (re) {
+      group <- names(lme4::VarCorr(m)$cond)
+      m_rvar <- lme4::VarCorr(m)$cond[[group]]
+    }
+
+  } else {
+    stop("Model class not supported")
+  }
+
+  return(list(
+    beta = m_beta,
+    sigma = data.matrix(m_sigma),
+    rvar = data.matrix(m_rvar)
+  ))
+}
