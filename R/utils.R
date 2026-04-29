@@ -234,9 +234,7 @@ vcov_unscale <- function(v, means, stds) {
 
 #' Check Random Effects Structure
 #'
-#' Validates that a formula contains at most one random intercept and no random
-#' slopes. Intended for use in models where random slopes cause scale-dependent
-#' results.
+#' Validates that a formula contains at most one random effect.
 #'
 #' @param formula A two-sided formula, potentially containing random effects.
 #'
@@ -250,17 +248,17 @@ re_check <- function(formula) {
   if (length(re_terms) > 1)
     stop("Only one random effect is allowed, e.g., (1 | group).")
 
-  has_slope <- sapply(re_terms, function(x) {
-    slope_terms <- paste("~", deparse(x[[2]])) |>
-      stats::as.formula() |>
-      stats::terms() |>
-      attr("term.labels")
-
-    length(slope_terms) > 0
-  })
-
-  if (any(has_slope))
-    stop("Random slopes are not allowed. Use random intercept only, e.g., (1 | group).")
+  # has_slope <- sapply(re_terms, function(x) {
+  #   slope_terms <- paste("~", deparse(x[[2]])) |>
+  #     stats::as.formula() |>
+  #     stats::terms() |>
+  #     attr("term.labels")
+  #
+  #   length(slope_terms) > 0
+  # })
+  #
+  # if (any(has_slope))
+  #   stop("Random slopes are not allowed. Use random intercept only, e.g., (1 | group).")
 
   invisible(NULL)
 }
