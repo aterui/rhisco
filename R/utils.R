@@ -273,6 +273,7 @@ re_check <- function(formula) {
 #' @param re Logical; return random-effect variance if available.
 #'
 #' @return List with \code{beta} (estimates), \code{sigma} (vcov matrix),
+#'   \code{rbeta} (group-specific estimates),
 #'   and \code{rvar} (random-effect variance or \code{NULL}).
 #'
 #' @export
@@ -280,7 +281,7 @@ re_check <- function(formula) {
 get_params <- function(m, idx, re = TRUE) {
 
   # initialize
-  m_beta <- m_sigma <- m_rvar <- NULL
+  m_beta <- m_sigma <- m_rbeta <- m_rvar <- NULL
 
   ## lm / glm
   if (inherits(m, c("lm", "glm"))) {
@@ -300,6 +301,7 @@ get_params <- function(m, idx, re = TRUE) {
 
     if (re) {
       group <- names(lme4::VarCorr(m))
+      m_rbeta <- t(stats::coef(m)[[group]][, idx, drop = FALSE])
       m_rvar <- lme4::VarCorr(m)[[group]]
     }
 
@@ -314,6 +316,7 @@ get_params <- function(m, idx, re = TRUE) {
 
     if (re) {
       group <- names(lme4::VarCorr(m)$cond)
+      m_rbeta <- t(stats::coef(m)$cond[[group]][, idx, drop = FALSE])
       m_rvar <- lme4::VarCorr(m)$cond[[group]]
     }
 
@@ -324,6 +327,7 @@ get_params <- function(m, idx, re = TRUE) {
   return(list(
     beta = m_beta,
     sigma = data.matrix(m_sigma),
+    rbeta = data.matrix(m_rbeta),
     rvar = data.matrix(m_rvar)
   ))
 }
