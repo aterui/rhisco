@@ -287,7 +287,9 @@ get_params <- function(m, idx, re = TRUE) {
     m_beta <- matrix(stats::coef(m)[idx],
                      nrow = length(idx),
                      ncol = 1)
-    m_sigma <- stats::vcov(m)[idx, idx, drop = FALSE]
+
+    m_sigma <- stats::vcov(m)[idx, idx, drop = FALSE] |>
+      data.matrix()
 
     ## lmer / glmer
   } else if (inherits(m, c("lmerMod", "glmerMod"))) {
@@ -295,12 +297,18 @@ get_params <- function(m, idx, re = TRUE) {
     m_beta <- matrix(lme4::fixef(m)[idx],
                      nrow = length(idx),
                      ncol = 1)
-    m_sigma <- stats::vcov(m)[idx, idx, drop = FALSE]
+
+    m_sigma <- stats::vcov(m)[idx, idx, drop = FALSE] |>
+      data.matrix()
 
     if (re) {
       group <- names(lme4::VarCorr(m))
-      m_rbeta <- t(stats::coef(m)[[group]][, idx, drop = FALSE])
-      m_rvar <- lme4::VarCorr(m)[[group]]
+
+      m_rbeta <- t(stats::coef(m)[[group]][, idx, drop = FALSE]) |>
+        data.matrix()
+
+      m_rvar <- lme4::VarCorr(m)[[group]] |>
+        data.matrix()
     }
 
     ## glmmTMB
@@ -308,14 +316,20 @@ get_params <- function(m, idx, re = TRUE) {
 
     m_beta <- matrix(glmmTMB::fixef(m)$cond[idx],
                      nrow = length(idx),
-                     ncol = 1)
+                     ncol = 1) |>
+      data.matrix()
 
-    m_sigma <- stats::vcov(m)$cond[idx, idx, drop = FALSE]
+    m_sigma <- stats::vcov(m)$cond[idx, idx, drop = FALSE] |>
+      data.matrix()
 
     if (re) {
       group <- names(lme4::VarCorr(m)$cond)
-      m_rbeta <- t(stats::coef(m)$cond[[group]][, idx, drop = FALSE])
-      m_rvar <- lme4::VarCorr(m)$cond[[group]]
+
+      m_rbeta <- t(stats::coef(m)$cond[[group]][, idx, drop = FALSE]) |>
+        data.matrix()
+
+      m_rvar <- lme4::VarCorr(m)$cond[[group]] |>
+        data.matrix()
     }
 
   } else {
@@ -324,8 +338,8 @@ get_params <- function(m, idx, re = TRUE) {
 
   return(list(
     beta = m_beta,
-    sigma = data.matrix(m_sigma),
-    rbeta = data.matrix(m_rbeta),
-    rvar = data.matrix(m_rvar)
+    sigma = m_sigma,
+    rbeta = m_rbeta,
+    rvar = m_rvar
   ))
 }
