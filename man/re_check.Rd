@@ -10,7 +10,5 @@ re_check(formula)
 \item{formula}{A two-sided formula, potentially containing random effects.}
 }
 \description{
-Validates that a formula contains at most one random intercept and no random
-slopes. Intended for use in models where random slopes cause scale-dependent
-results.
+Validates that a formula contains at most one random effect.
 }
