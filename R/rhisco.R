@@ -434,7 +434,7 @@ get_psi <- function(formula,
                     x_star,
                     group = extract_group(formula),
                     tc = c("t", "time", "timestep", "ts"),
-                    theta = seq(0.5, 10, by = 0.5),
+                    theta = seq(0, 10, by = 0.5),
                     n_lag = attr(stats::terms(formula), "term.labels")[1],
                     nt_lag = attr(stats::terms(formula), "term.labels")[2],
                     model = "lm",
@@ -499,12 +499,8 @@ get_psi <- function(formula,
     x_star <- (x_star - v_mu[nt_lag]) / v_sigma[nt_lag]
   }
 
-  ## a vector of constants; assigned as matrix
+  ## variable names
   v_id <- c("(Intercept)", n_lag, nt_lag)
-  m_const <- matrix(c(1, x0, x_star),
-                    nrow = 3,
-                    ncol = 1)
-  rownames(m_const) <- v_id
 
   # define theta ------------------------------------------------------------
 
@@ -558,7 +554,7 @@ get_psi <- function(formula,
   # get X* - <K_0> ----------------------------------------------------------
 
   ## euclidean distance to the point of approximation; then, get scaled weight
-  v_d0 <- data[[nt_lag]] - x_star
+  v_d0 <- abs(data[[nt_lag]] - x_star)
   data[["w0"]] <- dfun(v_d0, theta = theta0)
 
   ## model fit
@@ -584,16 +580,45 @@ get_psi <- function(formula,
   l_m0_par <- get_params(m0, idx = v_id, re = re_idx)
 
   ## estimate X*_{-i}
-  c0 <- l_m0_par[["beta"]][1, 1] # intercept
-  a <- l_m0_par[["beta"]][2, 1] # intraspecific effect
-  b <- l_m0_par[["beta"]][3, 1] # community effect
+  if (re_idx) {
+    m_b0 <- l_m0_par[["rbeta"]]
+  } else {
+    m_b0 <- l_m0_par[["beta"]]
+  }
 
-  k0 <- -(c0 + b * x_star) / a
-  k0 <- ifelse(k0 <= 0, 0, k0)
-  z <- 1 - b^2
-  x_star_i <- (z * x_star - k0) / (z + b)
+  if (rescale) {
+    # obtain unscaled parameters
+    # - v_intra; m_b[2, ] represents intra - inter
+    # - thus, m_b[2, ] + m_b[3, ] (inter) transforms it back to pure intra
+    np <- length(v_id)
+    m_std <- matrix(0, np, np)
+    diag(m_std) <- c(1, 1 / v_sigma)
+    m_std[1, seq(2, np, by = 1)] <- -v_mu / v_sigma
+    m_b <- m_std %*% m_b0
+    v_intra <- m_b[2, ] + m_b[3, ]
+
+    # get k0 with unscaled x_star (= x_star_usc)
+    x_star_usc <- x_star * v_sigma[nt_lag] + v_mu[nt_lag]
+    v_k0 <- -(m_b[1, ] + m_b[3, ] * x_star_usc) / v_intra
+    v_k0 <- ifelse(v_k0 > 0, v_k0, 0)
+    x_star_i_usc <- mean(x_star_usc - v_k0)
+    x_star_i <- (x_star_i_usc - v_mu[nt_lag]) / v_sigma[nt_lag]
+  } else {
+    m_b <- m_b0
+    v_intra <- m_b[2, ] + m_b[3, ]
+
+    v_k0 <- -(m_b[1, ] + m_b[3, ] * x_star) / v_intra
+    v_k0 <- ifelse(v_k0 > 0, v_k0, 0)
+    x_star_i <- mean(x_star - v_k0)
+  }
 
   # psi ---------------------------------------------------------------------
+
+  ## a vector of constants; assigned as matrix
+  m_const <- matrix(c(1, x0, x_star_i),
+                    nrow = 3,
+                    ncol = 1)
+  rownames(m_const) <- v_id
 
   ## euclidean distance to the point of approximation; then, get scaled weight
   v_d <- sqrt((data[[n_lag]] - x0)^2 + (data[[nt_lag]] - x_star_i)^2)
