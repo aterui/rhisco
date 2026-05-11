@@ -456,7 +456,7 @@ get_psi <- function(formula,
   if (is.null(group))
     stop("Missing 'group' argument.")
 
-  ## check if the random effect is single and intercept only
+  ## check if the random effect is single
   re_check(formula)
 
   ## do random effects exist?
