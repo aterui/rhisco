@@ -2,7 +2,7 @@
 % Please edit documentation in R/rhisco.R
 \name{get_psi}
 \alias{get_psi}
-\title{Estimate Historical Contingency (ψ)}
+\title{Estimate Historical Contingency (\eqn{\psi})}
 \usage{
 get_psi(
   formula,
@@ -21,6 +21,7 @@ get_psi(
   dist.method = "max",
   psi.method = c("marginal", "mean"),
   REML = FALSE,
+  minus_i = TRUE,
   ...
 )
 }
@@ -79,6 +80,8 @@ uncertainty, equivalent to asking whether the average species
 cannot invade. Defaults to \code{"marginal"}.}
 
 \item{REML}{Logical. If \code{TRUE}, Restricted Maximum Likelihood is used for estimation. Defaults to \code{FALSE}.}
+
+\item{minus_i}{Logical. If \code{TRUE}, \code{x_star} will be adjusted by subtracting the estimated equilibrium of an invader (averaged across species).}
 
 \item{...}{Additional arguments passed to the underlying model-fitting function.}
 }
