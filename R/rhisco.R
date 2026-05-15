@@ -362,7 +362,7 @@ xeq <- function(formula,
   return(x_star)
 }
 
-#' Estimate Historical Contingency (ψ)
+#' Estimate Historical Contingency (\eqn{\psi})
 #'
 #' Estimates the degree of historical contingency (\eqn{\psi}) in community dynamics
 #' based on the equilibrium total community density (\eqn{x^*}). The statistic quantifies
@@ -388,6 +388,7 @@ xeq <- function(formula,
 #'   solely on the mean invasion growth rate and its estimation
 #'   uncertainty, equivalent to asking whether the average species
 #'   cannot invade. Defaults to \code{"marginal"}.
+#' @param minus_i Logical. If \code{TRUE}, \code{x_star} will be adjusted by subtracting the estimated equilibrium of an invader (averaged across species).
 #'
 #' @details
 #' This function quantifies historical contingency (\eqn{\psi}) by evaluating uncertainty
@@ -445,6 +446,7 @@ get_psi <- function(formula,
                     dist.method = "max",
                     psi.method = c("marginal", "mean"),
                     REML = FALSE,
+                    minus_i = TRUE,
                     ...) {
 
   # check input -------------------------------------------------------------
@@ -553,75 +555,85 @@ get_psi <- function(formula,
 
   # get X* - <K_0> ----------------------------------------------------------
 
-  ## euclidean distance to the point of approximation; then, get scaled weight
-  v_d0 <- abs(data[[nt_lag]] - x_star)
-  data[["w0"]] <- dfun(v_d0, theta = theta0)
+  if (!minus_i) {
+    ## no adjustment
+    x_point <- x_star
 
-  ## model fit
-  m0 <- switch(model,
-               lm = stats::lm(formula,
-                              data = data,
-                              weights = w0,
-                              ...),
-               lmer = lme4::lmer(formula,
-                                 data = data,
-                                 weights = w0,
-                                 REML = REML,
-                                 ...),
-               glmmTMB = glmmTMB::glmmTMB(formula,
-                                          data = data,
-                                          weights = w0,
-                                          REML = REML,
-                                          ...),
-               stop("Unsupported model type")
-  )
-
-  ## get mean beta, vcov, random var
-  l_m0_par <- get_params(m0, idx = v_id, re = re_idx)
-
-  ## estimate X*_{-i}
-  if (re_idx) {
-    m_b0 <- l_m0_par[["rbeta"]]
   } else {
-    m_b0 <- l_m0_par[["beta"]]
-  }
 
-  if (rescale) {
-    # obtain unscaled parameters
-    # - v_intra; m_b[2, ] represents intra - inter
-    # - thus, m_b[2, ] + m_b[3, ] (inter) transforms it back to pure intra
-    np <- length(v_id)
-    m_std <- matrix(0, np, np)
-    diag(m_std) <- c(1, 1 / v_sigma)
-    m_std[1, seq(2, np, by = 1)] <- -v_mu / v_sigma
-    m_b <- m_std %*% m_b0
-    v_intra <- m_b[2, ] + m_b[3, ]
+    ## euclidean distance to the point of approximation; then, get scaled weight
+    v_d0 <- abs(data[[nt_lag]] - x_star)
+    data[["w0"]] <- dfun(v_d0, theta = theta0)
 
-    # get k0 with unscaled x_star (= x_star_usc)
-    x_star_usc <- x_star * v_sigma[nt_lag] + v_mu[nt_lag]
-    v_k0 <- -(m_b[1, ] + m_b[3, ] * x_star_usc) / v_intra
-    v_k0 <- ifelse(v_k0 > 0, v_k0, 0)
-    x_star_i_usc <- mean(x_star_usc - v_k0)
-    x_star_i <- (x_star_i_usc - v_mu[nt_lag]) / v_sigma[nt_lag]
-  } else {
-    m_b <- m_b0
-    v_intra <- m_b[2, ] + m_b[3, ]
+    ## model fit
+    m0 <- switch(model,
+                 lm = stats::lm(formula,
+                                data = data,
+                                weights = w0,
+                                ...),
+                 lmer = lme4::lmer(formula,
+                                   data = data,
+                                   weights = w0,
+                                   REML = REML,
+                                   ...),
+                 glmmTMB = glmmTMB::glmmTMB(formula,
+                                            data = data,
+                                            weights = w0,
+                                            REML = REML,
+                                            ...),
+                 stop("Unsupported model type")
+    )
 
-    v_k0 <- -(m_b[1, ] + m_b[3, ] * x_star) / v_intra
-    v_k0 <- ifelse(v_k0 > 0, v_k0, 0)
-    x_star_i <- mean(x_star - v_k0)
-  }
+    ## get mean beta, vcov, random var
+    l_m0_par <- get_params(m0, idx = v_id, re = re_idx)
+
+    ## estimate X*_{-i}
+    if (re_idx) {
+      m_b0 <- l_m0_par[["rbeta"]]
+    } else {
+      m_b0 <- l_m0_par[["beta"]]
+    } # if else for "re_idx"
+
+    if (rescale) {
+      # obtain unscaled parameters
+      # - v_intra; m_b[2, ] represents "intra - inter"
+      # - thus, m_b[2, ] + m_b[3, ] (inter) transforms it back to pure "intra"
+      np <- length(v_id)
+      m_std <- matrix(0, np, np)
+      diag(m_std) <- c(1, 1 / v_sigma)
+      m_std[1, seq(2, np, by = 1)] <- -v_mu / v_sigma
+      m_b <- m_std %*% m_b0
+      v_intra <- m_b[2, ] + m_b[3, ]
+
+      # get k0 with unscaled x_star (= x_star_usc)
+      # - replace negative k0 with zero
+      x_star_usc <- x_star * v_sigma[nt_lag] + v_mu[nt_lag]
+      v_k0 <- -(m_b[1, ] + m_b[3, ] * x_star_usc) / v_intra
+      v_k0[v_k0 < 0] <- 0
+      v_x_star_i_usc <- x_star_usc - v_k0
+      v_x_star_i <- (v_x_star_i_usc - v_mu[nt_lag]) / v_sigma[nt_lag]
+    } else {
+      m_b <- m_b0
+      v_intra <- m_b[2, ] + m_b[3, ]
+
+      v_k0 <- -(m_b[1, ] + m_b[3, ] * x_star) / v_intra
+      v_k0[v_k0 < 0] <- 0
+      v_x_star_i <- x_star - v_k0
+    } # if else for "rescale"
+
+    x_point <- mean(v_x_star_i)
+  } # if else for "minus_i"
 
   # psi ---------------------------------------------------------------------
 
   ## a vector of constants; assigned as matrix
-  m_const <- matrix(c(1, x0, x_star_i),
+  m_const <- matrix(c(1, x0, x_point),
                     nrow = 3,
                     ncol = 1)
   rownames(m_const) <- v_id
 
   ## euclidean distance to the point of approximation; then, get scaled weight
-  v_d <- sqrt((data[[n_lag]] - x0)^2 + (data[[nt_lag]] - x_star_i)^2)
+  v_d <- sqrt((data[[n_lag]] - x0)^2 + (data[[nt_lag]] - x_point)^2)
   data[["w"]] <- dfun(v_d, theta = theta0)
 
   m <- switch(model,
@@ -665,7 +677,7 @@ get_psi <- function(formula,
     m_const_re <- m_const[match(re_terms, v_id), , drop = FALSE]
 
     # compute variance contribution from random effects
-    var_r0 <- drop(t(m_const_re) %*% m_rvar[re_terms, re_terms] %*% m_const_re)
+    var_r0 <- drop(t(m_const_re) %*% m_rvar[re_terms, re_terms, drop = FALSE] %*% m_const_re)
   }
 
   var_r <- if (psi.method == "mean") 0 else var_r0
