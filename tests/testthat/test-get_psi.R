@@ -7,13 +7,13 @@ test_that("get_psi returns numeric psi with correct attributes", {
   dyn <- csim(ts = 10,
              s = 30,
              r = par.control(dist = "unif",
-                             min = 1,
-                             max = 1),
+                             min = 0.5,
+                             max = 1.5),
              alpha = par.control(dist = "constant",
                                  mu = 1),
              beta = par.control(dist = "unif",
-                                min = 1,
-                                max = 1))
+                                min = 0,
+                                max = 0.1))
 
   df <- dyn %>%
     rename(n = density) %>%
