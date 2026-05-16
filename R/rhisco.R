@@ -446,7 +446,7 @@ get_psi <- function(formula,
                     dist.method = "max",
                     psi.method = c("marginal", "mean"),
                     REML = FALSE,
-                    minus_i = TRUE,
+                    minus_i = FALSE,
                     ...) {
 
   # check input -------------------------------------------------------------
