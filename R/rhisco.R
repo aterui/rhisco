@@ -555,12 +555,7 @@ get_psi <- function(formula,
 
   # get X* - <K_0> ----------------------------------------------------------
 
-  if (!minus_i) {
-    ## no adjustment
-    x_point <- x_star
-
-  } else {
-
+  if (minus_i) {
     ## euclidean distance to the point of approximation; then, get scaled weight
     v_d0 <- abs(data[[nt_lag]] - x_star)
     data[["w0"]] <- dfun(v_d0, theta = theta0)
@@ -622,6 +617,11 @@ get_psi <- function(formula,
     } # if else for "rescale"
 
     x_point <- mean(v_x_star_i)
+
+  } else {
+    ## no adjustment
+    x_point <- x_star
+
   } # if else for "minus_i"
 
   # psi ---------------------------------------------------------------------
