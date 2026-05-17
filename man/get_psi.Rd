@@ -21,7 +21,7 @@ get_psi(
   dist.method = "max",
   psi.method = c("marginal", "mean"),
   REML = FALSE,
-  minus_i = TRUE,
+  minus_i = FALSE,
   ...
 )
 }
